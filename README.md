@@ -9,7 +9,7 @@
 A professional habit tracker — web app, installable as a PWA — with a
 GitHub-style contribution calendar and a modern *liquid glass* interface.
 
-[Live preview](#) · [Report an issue](https://github.com/yermukhamed0777/Habittism/issues) · [MIT License](./LICENSE)
+[Live preview](https://yermukhamed0777.github.io/Habittism/) · [Report an issue](https://github.com/yermukhamed0777/Habittism/issues) · [MIT License](./LICENSE)
 
 </div>
 
