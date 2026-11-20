@@ -75,4 +75,52 @@ create policy log_owner on public.habit_logs for all to authenticated
 create policy affirmation_owner on public.daily_affirmations for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 
+-- Import one browser backup atomically. Retries retain any existing cloud data.
+create function public.import_legacy_journal(payload jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  owner_id uuid := auth.uid();
+begin
+  if owner_id is null then
+    raise exception 'Sign in before importing a journal' using errcode = '42501';
+  end if;
+  if jsonb_typeof(payload->'habits') is distinct from 'array'
+    or jsonb_typeof(payload->'logs') is distinct from 'array'
+    or jsonb_typeof(payload->'affirmations') is distinct from 'array' then
+    raise exception 'Invalid journal backup' using errcode = '22023';
+  end if;
+
+  insert into public.habits (
+    user_id, legacy_id, name, icon, color, category, custom_category, schedule_type,
+    weekdays, weekly_target, kind, goal, unit, created_on, archived
+  )
+  select owner_id, h.legacy_id, h.name, h.icon, h.color, h.category, h.custom_category, h.schedule_type,
+    h.weekdays, h.weekly_target, h.kind, h.goal, h.unit, h.created_on, h.archived
+  from jsonb_to_recordset(payload->'habits') as h (
+    legacy_id text, name text, icon text, color text, category text, custom_category text, schedule_type text,
+    weekdays smallint[], weekly_target smallint, kind text, goal numeric, unit text, created_on date, archived boolean
+  )
+  where h.legacy_id is not null
+  on conflict (user_id, legacy_id) do nothing;
+
+  insert into public.habit_logs (user_id, habit_id, day, value)
+  select owner_id, h.id, l.day, 1
+  from jsonb_to_recordset(payload->'logs') as l (legacy_id text, day date)
+  join public.habits as h on h.user_id = owner_id and h.legacy_id = l.legacy_id
+  on conflict (user_id, habit_id, day) do nothing;
+
+  insert into public.daily_affirmations (user_id, day, body)
+  select owner_id, a.day, a.body
+  from jsonb_to_recordset(payload->'affirmations') as a (day date, body text)
+  on conflict (user_id, day) do nothing;
+end;
+$$;
+
+revoke execute on function public.import_legacy_journal(jsonb) from public, anon, authenticated;
+grant execute on function public.import_legacy_journal(jsonb) to authenticated;
+
 commit;

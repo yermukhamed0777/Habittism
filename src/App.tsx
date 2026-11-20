@@ -3,6 +3,7 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { CalendarDays, House, Leaf, ListChecks, Plus, Settings, Sun } from 'lucide-react'
 import { AuthShell } from './components/AuthGate'
 import { JournalDialog } from './components/JournalDialog'
+import { LegacyImport } from './components/LegacyImport'
 import { TrackerCalendar } from './components/TrackerCalendar'
 import { TrackerHabitForm } from './components/TrackerHabitForm'
 import { TrackerDay, TrackerHistory } from './components/TrackerHistory'
@@ -10,6 +11,7 @@ import { DailyGreeting, HabitLibrary, TodayView } from './components/TrackerView
 import { useToday } from './hooks/useToday'
 import { toKey } from './lib/dates'
 import { habitRepository, type HabitRepository } from './lib/habitRepository'
+import { browserBackupImported, markBrowserBackupImported, readBrowserBackup, type LegacyJournal } from './lib/legacyJournal'
 import { dayEntries, isOnToday, type Journal } from './lib/tracking'
 import { useCloudJournal } from './store/useCloudJournal'
 
@@ -21,7 +23,7 @@ const navigation = [
 ] as const
 
 type View = (typeof navigation)[number]['id']
-type Dialog = { kind: 'create' | 'settings' } | { kind: 'day'; day: string } | { kind: 'habit'; id: string; day?: string }
+type Dialog = { kind: 'create' | 'settings' | 'import' | 'importing' } | { kind: 'day'; day: string } | { kind: 'habit'; id: string; day?: string }
 type Account = { client: SupabaseClient; session: Session }
 
 function displayName(session: Session) {
@@ -67,12 +69,40 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
   const [accountError, setAccountError] = useState('')
   const [signingOut, setSigningOut] = useState(false)
   const today = useToday()
+  const [browserBackup, setBrowserBackup] = useState(() => browserBackupImported(session.user.id) ? null : readBrowserBackup(toKey(today)))
+  const [showImport, setShowImport] = useState(true)
+  const [imported, setImported] = useState(false)
+  const [importError, setImportError] = useState('')
   const due = tracker.journal.habits.filter((habit) => isOnToday(habit, tracker.journal.logs[habit.id] ?? {}, today))
   const selectedHabit = dialog?.kind === 'habit' && tracker.journal.habits.find((habit) => habit.id === dialog.id)
   const close = () => setDialog(null)
   const openHabit = (id: string, day?: string) => setDialog({ kind: 'habit', id, day })
   const onAdd = () => setDialog({ kind: 'create' })
   const habitView = { tracker, today, due, onAdd, onOpenHabit: openHabit }
+
+  async function importBackup(backup: LegacyJournal, fromBrowser: boolean) {
+    if (tracker.sync.pending) throw new Error('Wait for your changes to finish syncing.')
+    await repository.importLegacy(backup)
+    tracker.setJournal(await repository.load())
+    if (fromBrowser) {
+      markBrowserBackupImported(session.user.id)
+      setBrowserBackup(null)
+    }
+    setImported(true)
+    close()
+  }
+
+  async function importFromBrowser() {
+    if (!browserBackup || tracker.sync.pending) return
+    setImportError('')
+    setDialog({ kind: 'importing' })
+    try {
+      await importBackup(browserBackup, true)
+    } catch (reason) {
+      setImportError(reason instanceof Error ? reason.message : 'Could not import your backup. Please try again.')
+      close()
+    }
+  }
 
   async function signOut() {
     if (tracker.sync.pending || signingOut) return
@@ -108,6 +138,16 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
           <div className="sync-banner" role="alert"><span>Changes are waiting to sync. {tracker.sync.error}</span>
             <button type="button" className="secondary" onClick={() => void tracker.retry()}>Retry sync</button></div>
         ) : <div className="sync-status" role="status">{tracker.sync.pending ? 'Saving changes…' : 'All changes synced'}</div>}
+        {browserBackup && showImport && <section className="import-banner">
+          <div><strong>Import your saved habits and affirmations</strong><p>Move this browser’s previous Habittism data into {session.user.email ?? 'your account'}.</p>
+            {importError && <p className="error" role="alert">{importError}</p>}
+          </div>
+          <div className="chips">
+            <button type="button" className="secondary" onClick={() => setShowImport(false)}>Later</button>
+            <button type="button" className="primary" disabled={!!tracker.sync.pending} onClick={() => void importFromBrowser()}>Import data</button>
+          </div>
+        </section>}
+        {imported && <div className="import-banner" role="status">Your backup was imported.<button className="text-button" type="button" onClick={() => setImported(false)}>Dismiss</button></div>}
         {view === 'greeting' && <DailyGreeting {...habitView} name={displayName(session)} onToday={() => setView('today')} />}
         {view === 'today' && <TodayView {...habitView} />}
         {view === 'habits' && <HabitLibrary {...habitView} />}
@@ -118,8 +158,11 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
         habit={selectedHabit} initialDay={dialog.day} onClose={close} />}
       {dialog?.kind === 'day' && <TrackerDay tracker={tracker} day={dialog.day} today={today} onClose={close}
         onOpenHabit={openHabit} entries={(date) => dayEntries(tracker.journal, date, today)} />}
+      {dialog?.kind === 'import' && <LegacyImport browserBackup={browserBackup} today={toKey(today)} email={session.user.email} onImport={importBackup} onClose={close} />}
+      {dialog?.kind === 'importing' && <JournalDialog title="Importing previous data" onClose={close} busy><p role="status">Moving your habits, check-ins, and affirmations to this account…</p></JournalDialog>}
       {dialog?.kind === 'settings' && <JournalDialog title="Settings" subtitle={session.user.email} onClose={close}>
         {accountError && <p className="error" role="alert">{accountError}</p>}
+        <button type="button" className="secondary" disabled={!!tracker.sync.pending} onClick={() => setDialog({ kind: 'import' })}>Import browser backup</button>
         {!!tracker.sync.pending && <p>Finish syncing changes before signing out.</p>}
         <div className="dialog-actions"><button type="button" className="secondary" disabled={!!tracker.sync.pending || signingOut} onClick={() => void signOut()}>Sign out</button></div>
       </JournalDialog>}

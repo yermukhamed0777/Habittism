@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { LegacyJournal } from './legacyJournal'
 import type { HabitInput, HabitLog, Journal, TrackedHabit } from './tracking'
 
 export function habitFields(habit: HabitInput) {
@@ -102,6 +103,10 @@ export function habitRepository(client: SupabaseClient, userId: string) {
       return body
         ? checked(table.upsert({ user_id: userId, day, body }))
         : checked(table.delete().eq('user_id', userId).eq('day', day))
+    },
+
+    importLegacy(payload: LegacyJournal) {
+      return checked(client.rpc('import_legacy_journal', { payload }))
     },
   }
 }

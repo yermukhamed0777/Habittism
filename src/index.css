@@ -75,6 +75,10 @@ a { color: inherit; }
 .workspace-main { padding-block: .8rem 4rem; display: grid; gap: 1.25rem; }
 .sync-status { color: var(--muted); font-size: .73rem; text-align: right; min-height: 1em; }
 .sync-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .65rem; border: 1px solid var(--line); padding: .75rem 1rem; background: var(--surface); color: var(--danger); border-radius: .7rem; }
+.import-banner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .7rem; padding: .75rem 1rem; border: 1px solid var(--line); border-radius: .7rem; background: var(--soft); color: var(--soft-ink); }
+.import-banner p, .import-form p { color: var(--muted); font-size: .83rem; margin-top: .22rem; }
+.import-banner .error, .import-form .error { color: var(--danger); }
+.import-form { display: grid; gap: .7rem; }
 .page-heading { margin-bottom: .2rem; }
 .page-heading h1, .greeting-hero h1 { font: 400 clamp(3.4rem, 9vw, 6.05rem)/.98 var(--serif); letter-spacing: -.025em; overflow-wrap: anywhere; }
 .page-heading p { margin-top: .5rem; color: var(--muted); }
