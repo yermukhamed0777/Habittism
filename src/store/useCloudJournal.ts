@@ -84,6 +84,17 @@ export function useCloudJournal(initial: Journal, repository?: HabitRepository) 
     })
     if (repository) queue.add(`delete:${id}`, () => repository.deleteHabit(id))
   }
+  /**
+   * Archive or unarchive a habit. The local state updates immediately for UI
+   * responsiveness, while the remote update is queued.
+   */
+  function updateHabit(id: string, archived: boolean) {
+    setJournal((prev) => {
+      const habits = prev.habits.map((habit) => (habit.id === id ? { ...habit, archived } : habit))
+      return { ...prev, habits }
+    })
+    if (repository) queue.add(`update:${id}`, () => repository.updateHabit(id, archived))
+  }
 
   function writeLog(id: string, day: string, log: HabitLog | null) {
     setJournal((previous) => {
@@ -100,7 +111,7 @@ export function useCloudJournal(initial: Journal, repository?: HabitRepository) 
     if (repository) queue.add(`affirmation:${day}`, () => repository.writeAffirmation(day, body.trim()), 650)
   }
 
-  return { journal, setJournal, sync, retry: queue.flush, createHabit, createHabits, deleteHabit, writeLog, writeAffirmation }
+  return { journal, setJournal, sync, retry: queue.flush, createHabit, createHabits, deleteHabit, updateHabit, writeLog, writeAffirmation }
 }
 
 export type CloudJournal = ReturnType<typeof useCloudJournal>

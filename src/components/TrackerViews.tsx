@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { ArrowRight, CalendarDays, Feather, Leaf, Plus, Search, Snowflake } from 'lucide-react'
+import { ArrowRight, CalendarDays, Feather, Leaf, Plus, Search, Snowflake, Archive } from 'lucide-react'
 import { AFFIRMATION_PROMPTS, greetingFor, pickPrompt } from '../lib/affirmations'
 import { fromKey, startOfWeekMonday, toKey } from '../lib/dates'
 import { categoryLabel, focusQueue, formatDay, isComplete, scheduleLabel, weekProgress, type TrackedHabit } from '../lib/tracking'
@@ -151,6 +151,15 @@ function HabitRow({ habit, tracker, today, onOpenHabit, showControl }: Pick<Habi
         <EntryIcon habit={habit} />
         <span><strong>{habit.name}</strong><small>{habit.archived ? 'Archived · ' : ''}{categoryLabel(habit)} · {scheduleLabel(habit)}</small></span>
       </button>
+      {/* Archive toggle button */}
+      <button type="button" className="icon-button" aria-label={habit.archived ? `Unarchive ${habit.name}` : `Archive ${habit.name}`} onClick={() => {
+        if (habit.archived) {
+          tracker.updateHabit(habit.id, false)
+        } else if (window.confirm(`Archive “${habit.name}”?`)) {
+          tracker.updateHabit(habit.id, true)
+        }
+      }}>
+        <Archive size={16} /></button>
       {weekly && <span className="weekly-caption">{weekly.done}/{weekly.target} this week</span>}
       {log?.frozen && <span className="freeze-status"><Snowflake size={14} /> Frozen</span>}
       {showControl && <EntryControl habit={habit} log={log} onChange={write} />}

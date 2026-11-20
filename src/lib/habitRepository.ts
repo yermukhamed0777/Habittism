@@ -94,6 +94,14 @@ export function habitRepository(client: SupabaseClient, userId: string) {
     deleteHabit(id: string) {
       return checked(client.from('habits').delete().eq('user_id', userId).eq('id', id))
     },
+    /**
+     * Toggle the archived flag of a habit. The Supabase row level security policy
+     * allows authenticated users to update their own habit rows. This method
+     * only updates the `archived` column.
+     */
+    updateHabit(id: string, archived: boolean) {
+      return checked(client.from('habits').update({ archived }).eq('user_id', userId).eq('id', id))
+    },
 
     writeLog(id: string, day: string, log: HabitLog | null) {
       const table = client.from('habit_logs')
