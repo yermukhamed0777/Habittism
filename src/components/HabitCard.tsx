@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { Check, Flame, Trash2 } from 'lucide-react'
+import { CalendarDays, Check, Flame, Trash2 } from 'lucide-react'
 import { GlassPanel } from './GlassPanel'
 import { HabitIcon } from './HabitIcon'
 import { COLOR_HEX, CATEGORY_META } from '../types'
@@ -11,10 +11,19 @@ interface HabitCardProps {
   isDoneToday: boolean
   onToggle: () => void
   onDelete: () => void
+  /** Opens the habit's day picker. */
+  onOpen?: () => void
   index?: number
 }
 
-export function HabitCard({ stats, isDoneToday, onToggle, onDelete, index = 0 }: HabitCardProps) {
+export function HabitCard({
+  stats,
+  isDoneToday,
+  onToggle,
+  onDelete,
+  onOpen,
+  index = 0,
+}: HabitCardProps) {
   const { habit, currentStreak, bestStreak, thisWeek, dueThisWeek, completionRate } = stats
   const tint = COLOR_HEX[habit.color]
   const weekProgress = Math.min(1, thisWeek / Math.max(1, dueThisWeek || habit.targetPerWeek))
@@ -71,8 +80,13 @@ export function HabitCard({ stats, isDoneToday, onToggle, onDelete, index = 0 }:
             )}
           </button>
 
-          {/* Body */}
-          <div className="min-w-0 flex-1">
+          {/* Body — clicking opens the habit's day picker */}
+          <button
+            type="button"
+            onClick={onOpen}
+            aria-label={`Open ${habit.name} and choose completed days`}
+            className="min-w-0 flex-1 text-left"
+          >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p
@@ -88,14 +102,9 @@ export function HabitCard({ stats, isDoneToday, onToggle, onDelete, index = 0 }:
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={onDelete}
-                aria-label={`Delete ${habit.name}`}
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-mist-500 opacity-0 transition-all duration-300 hover:bg-rose-500/15 hover:text-rose-300 focus-visible:opacity-100 group-hover:opacity-100"
-              >
-                <Trash2 size={13} />
-              </button>
+              <span className="mt-0.5 shrink-0 text-mist-500 transition-colors duration-300 group-hover:text-mist-200">
+                <CalendarDays size={14} strokeWidth={2.2} />
+              </span>
             </div>
 
             {/* Meta row */}
@@ -139,7 +148,17 @@ export function HabitCard({ stats, isDoneToday, onToggle, onDelete, index = 0 }:
             <p className="mt-2.5 text-[0.68rem] font-medium text-mist-500 tabular">
               {Math.round(completionRate)}% lifetime consistency
             </p>
-          </div>
+          </button>
+
+          {/* Delete */}
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Delete ${habit.name}`}
+            className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg text-mist-500 opacity-0 transition-all duration-300 hover:bg-rose-500/15 hover:text-rose-300 focus-visible:opacity-100 group-hover:opacity-100"
+          >
+            <Trash2 size={13} />
+          </button>
         </div>
       </GlassPanel>
     </motion.div>

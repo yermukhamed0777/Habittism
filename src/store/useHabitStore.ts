@@ -7,6 +7,8 @@ import { toKey, getSessionToday } from '../lib/dates'
 interface HabitState {
   habits: Habit[]
   completions: CompletionMap
+  /** dateKey (YYYY-MM-DD) -> affirmation written that day. */
+  affirmations: Record<string, string>
   addHabit: (input: {
     name: string
     icon: string
@@ -17,16 +19,26 @@ interface HabitState {
   removeHabit: (id: string) => void
   updateHabit: (id: string, patch: Partial<Omit<Habit, 'id'>>) => void
   toggleCompletion: (habitId: string, dayKey: string) => void
-  resetDemo: () => void
+  setAffirmation: (dateKey: string, text: string) => void
+  removeAffirmation: (dateKey: string) => void
+  /** Load the demo dataset — an optional, explicit action. */
+  loadSampleData: () => void
+  /** Wipe every habit, completion and affirmation. */
+  clearAll: () => void
 }
 
 const newId = () => `h-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 
+const emptyState = {
+  habits: [] as Habit[],
+  completions: {} as CompletionMap,
+  affirmations: {} as Record<string, string>,
+}
+
 export const useHabitStore = create<HabitState>()(
   persist(
     (set) => ({
-      habits: SEED_HABITS,
-      completions: generateSeedCompletions(SEED_HABITS),
+      ...emptyState,
 
       addHabit: ({ name, icon, category, color, targetPerWeek }) =>
         set((state) => {
@@ -40,7 +52,7 @@ export const useHabitStore = create<HabitState>()(
             schedule:
               targetPerWeek >= 5
                 ? [0, 1, 2, 3, 4, 5, 6]
-                : (scheduleForHabit({
+                : scheduleForHabit({
                     id: name + icon,
                     name,
                     icon,
@@ -49,7 +61,7 @@ export const useHabitStore = create<HabitState>()(
                     targetPerWeek,
                     createdAt: '',
                     archived: false,
-                  }) as number[]),
+                  }),
             createdAt: toKey(getSessionToday()),
             archived: false,
           }
@@ -81,29 +93,37 @@ export const useHabitStore = create<HabitState>()(
           }
         }),
 
-      resetDemo: () =>
+      setAffirmation: (dateKey, text) =>
+        set((state) => {
+          const trimmed = text.trim()
+          const affirmations = { ...state.affirmations }
+          if (trimmed) affirmations[dateKey] = trimmed
+          else delete affirmations[dateKey]
+          return { affirmations }
+        }),
+
+      removeAffirmation: (dateKey) =>
+        set((state) => {
+          const affirmations = { ...state.affirmations }
+          delete affirmations[dateKey]
+          return { affirmations }
+        }),
+
+      loadSampleData: () =>
         set({
           habits: SEED_HABITS,
           completions: generateSeedCompletions(SEED_HABITS),
         }),
+
+      clearAll: () => set({ ...emptyState }),
     }),
     {
       name: 'habittism-store-v1',
-      version: 6,
+      version: 7,
       migrate: (persisted: unknown) => {
-        // v1 stored no `schedule`; v2 used a less realistic seed generator.
-        // Rebuild both so the dashboard ships with coherent demo data.
-        const state = persisted as { habits?: Habit[]; completions?: CompletionMap } | undefined
-        if (!state?.habits) return persisted
-        const habits = state.habits.map((h) => ({
-          ...h,
-          schedule: h.schedule?.length ? h.schedule : scheduleForHabit(h),
-        }))
-        return {
-          ...state,
-          habits,
-          completions: generateSeedCompletions(habits),
-        }
+        // v7 starts from a clean slate: the user builds their own habit set.
+        const state = persisted as { affirmations?: Record<string, string> } | undefined
+        return { ...emptyState, affirmations: state?.affirmations ?? {} }
       },
     },
   ),

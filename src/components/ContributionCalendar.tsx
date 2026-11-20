@@ -2,14 +2,20 @@ import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { GlassPanel, SectionHeading } from './GlassPanel'
+import { CalendarTooltip } from './CalendarTooltip'
 import { cn } from '../lib/utils'
 import { buildCalendarWeeks, getSessionToday, monthLabelsFor, toKey } from '../lib/dates'
 import type { DayStat } from '../types'
+import type { DayHabitEntry } from '../hooks/useHabitStats'
 
 interface ContributionCalendarProps {
   days: DayStat[]
   /** Total number of habits, used for copy and tooltips. */
   totalHabits: number
+  /** Per-day habit breakdown, powering the hover tooltip. */
+  dayBreakdown: Map<string, DayHabitEntry[]>
+  /** Fired when a calendar cell is clicked. */
+  onSelectDay: (dayKey: string) => void
   className?: string
 }
 
@@ -51,8 +57,15 @@ function buildLevelMap(days: DayStat[]): Map<string, number> {
   return levelMap
 }
 
-export function ContributionCalendar({ days, totalHabits, className }: ContributionCalendarProps) {
+export function ContributionCalendar({
+  days,
+  totalHabits,
+  dayBreakdown,
+  onSelectDay,
+  className,
+}: ContributionCalendarProps) {
   const [offset, setOffset] = useState(0)
+  const [hovered, setHovered] = useState<{ date: Date; x: number; y: number } | null>(null)
 
   const { weeks, monthLabels, lookup } = useMemo(() => {
     const shifted = getSessionToday()
@@ -191,8 +204,9 @@ export function ContributionCalendar({ days, totalHabits, className }: Contribut
                   const isFuture = date > today
 
                   return (
-                    <motion.div
+                    <motion.button
                       key={key}
+                      type="button"
                       initial={{ opacity: 0, scale: 0.55 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{
@@ -200,17 +214,28 @@ export function ContributionCalendar({ days, totalHabits, className }: Contribut
                         duration: 0.3,
                         ease: [0.16, 1, 0.3, 1],
                       }}
+                      onMouseEnter={(e) => setHovered({ date, x: e.clientX, y: e.clientY })}
+                      onMouseMove={(e) =>
+                        setHovered((h) => (h ? { ...h, x: e.clientX, y: e.clientY } : h))
+                      }
+                      onMouseLeave={() => setHovered(null)}
+                      onFocus={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect()
+                        setHovered({ date, x: r.right, y: r.bottom })
+                      }}
+                      onBlur={() => setHovered(null)}
+                      onClick={() => onSelectDay(key)}
+                      aria-label={`${date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })} — ${count} of ${due} completed`}
                       className={cn(
-                        'aspect-square w-full rounded-[3.5px]',
+                        'aspect-square w-full rounded-[3.5px] transition-shadow duration-200',
                         isFuture ? 'opacity-25' : LEVELS[level],
                         isToday && 'ring-1 ring-aqua-300/70',
                       )}
                       style={{ gridColumn: wi + 2, gridRow: di + 1 }}
-                      title={`${count} of ${due} scheduled completed on ${date.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}`}
                     />
                   )
                 }),
@@ -252,6 +277,22 @@ export function ContributionCalendar({ days, totalHabits, className }: Contribut
           </div>
         </div>
       </div>
+
+      <CalendarTooltip
+        date={hovered?.date ?? null}
+        x={hovered?.x ?? 0}
+        y={hovered?.y ?? 0}
+        habits={
+          hovered
+            ? (dayBreakdown.get(toKey(hovered.date)) ?? []).map((h) => ({
+                id: h.id,
+                name: h.name,
+                color: h.color,
+                done: h.done,
+              }))
+            : []
+        }
+      />
     </GlassPanel>
   )
 }

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useHabitStore } from '../store/useHabitStore'
 import { scheduleForHabit } from '../data/seed'
 import type { DayStat, Habit } from '../types'
+import { COLOR_HEX } from '../types'
 import { buildCalendarWeeks, getSessionToday, toKey } from '../lib/dates'
 
 export interface HabitStats {
@@ -201,6 +202,49 @@ export function useOverview(): Overview {
       perfectDays,
       scheduledOpportunities,
     }
+  }, [habits, completions])
+}
+
+/**
+ * Per-day breakdown of every habit: whether it was scheduled, and whether it
+ * was completed. Used by the calendar tooltip and the day-detail modal.
+ */
+export interface DayHabitEntry {
+  id: string
+  name: string
+  color: string
+  due: boolean
+  done: boolean
+}
+
+export function useDayBreakdown(): Map<string, DayHabitEntry[]> {
+  const habits = useHabitStore((s) => s.habits)
+  const completions = useHabitStore((s) => s.completions)
+
+  return useMemo(() => {
+    const map = new Map<string, DayHabitEntry[]>()
+    const weeks = buildCalendarWeeks(53, getSessionToday())
+    const allDays = weeks.flat()
+
+    for (const habit of habits) {
+      const schedule = new Set(scheduleForHabit(habit))
+      const done = new Set(completions[habit.id] ?? [])
+
+      for (const day of allDays) {
+        const key = toKey(day)
+        const list = map.get(key) ?? []
+        list.push({
+          id: habit.id,
+          name: habit.name,
+          color: COLOR_HEX[habit.color],
+          due: schedule.has(day.getDay()),
+          done: done.has(key),
+        })
+        map.set(key, list)
+      }
+    }
+
+    return map
   }, [habits, completions])
 }
 

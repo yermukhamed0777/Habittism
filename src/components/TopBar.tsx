@@ -1,5 +1,6 @@
-import { Activity, Plus } from 'lucide-react'
+import { Activity, Feather, LayoutDashboard, Plus } from 'lucide-react'
 import { motion } from 'motion/react'
+import { cn } from '../lib/utils'
 
 export function Logo({ size = 30 }: { size?: number }) {
   return (
@@ -24,13 +25,22 @@ export function Logo({ size = 30 }: { size?: number }) {
   )
 }
 
+export type View = 'greeting' | 'dashboard'
+
+const VIEWS: { id: View; label: string; icon: typeof Feather }[] = [
+  { id: 'greeting', label: 'Today', icon: Feather },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+]
+
 interface TopBarProps {
   onAdd: () => void
   streak: number
   onReset: () => void
+  view: View
+  onViewChange: (view: View) => void
 }
 
-export function TopBar({ onAdd, streak, onReset }: TopBarProps) {
+export function TopBar({ onAdd, streak, onReset, view, onViewChange }: TopBarProps) {
   return (
     <motion.header
       initial={{ opacity: 0, y: -14 }}
@@ -53,8 +63,28 @@ export function TopBar({ onAdd, streak, onReset }: TopBarProps) {
             </div>
           </div>
 
+          {/* View switcher */}
+          <nav className="flex items-center gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] p-1">
+            {VIEWS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onViewChange(id)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[0.76rem] font-semibold transition-all duration-300',
+                  view === id
+                    ? 'bg-white/[0.12] text-mist-100 shadow-sm'
+                    : 'text-mist-400 hover:text-mist-200',
+                )}
+              >
+                <Icon size={13} strokeWidth={2.2} />
+                {label}
+              </button>
+            ))}
+          </nav>
+
           {/* Streak badge */}
-          <div className="chip hidden !border-amber-300/25 !bg-amber-400/10 text-amber-200 sm:inline-flex">
+          <div className="chip hidden !border-amber-300/25 !bg-amber-400/10 text-amber-200 md:inline-flex">
             <Activity size={12} strokeWidth={2.4} />
             {streak} day streak
           </div>
@@ -65,9 +95,9 @@ export function TopBar({ onAdd, streak, onReset }: TopBarProps) {
               type="button"
               onClick={onReset}
               className="btn-ghost hidden !px-2.5 !py-2 sm:inline-flex"
-              title="Reset demo data"
+              title="Clear all data"
             >
-              <span className="text-[0.74rem]">Reset</span>
+              <span className="text-[0.74rem]">Clear</span>
             </button>
             <button type="button" onClick={onAdd} className="btn-primary !px-3 !py-2 sm:!px-4">
               <Plus size={15} strokeWidth={2.6} />
