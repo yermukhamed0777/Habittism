@@ -1,11 +1,11 @@
 # Habittism
 
-Habittism is a private habit tracker and affirmation journal. Create habits from a blank slate, check in on the schedules you set, and explore progress in a calendar or in Insights.
+Habittism is a private habit tracker and affirmation journal. Start immediately as a guest, build a blank journal one habit at a time or choose an optional starter pack, and sign in to sync across devices.
 
 ## Run locally
 
 1. Use Node.js 22.12 or newer and run `npm ci`.
-2. Create a Supabase project. In its **SQL Editor**, open a new query and run the full contents of [supabase/schema.sql](supabase/schema.sql) once. This creates the tables, ownership policies, and import function.
+2. Create a Supabase project. In its **SQL Editor**, run [supabase/schema.sql](supabase/schema.sql) once, then apply each SQL file in [supabase/migrations](supabase/migrations) in filename order. Projects that already have the base schema need only the unapplied migrations.
 3. Copy [`.env.example`](.env.example) to `.env.local`. Set `VITE_SUPABASE_URL` to the Project URL and `VITE_SUPABASE_ANON_KEY` to its publishable or legacy anon key. Vite exposes these two values in the browser bundle. Keep Supabase service-role and secret keys in server environments.
 4. In Supabase **Authentication → URL Configuration**, add `http://localhost:5173/` to **Redirect URLs**. Set the **Site URL** to that address while developing a local-only project. [Supabase redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls)
 5. Run `npm run dev` and open [the local app](http://localhost:5173/).
@@ -24,6 +24,8 @@ To enable GitHub sign-in, create a GitHub OAuth App. Use your Habittism URL as t
 6. On the deployed site, create a test account, confirm email or sign in with GitHub, create a habit, and check that its check-in and today’s affirmation survive a reload.
 
 ## Move data from the previous app
+
+Guest habits, check-ins, and affirmations merge automatically when you sign in in the browser where you created them. A merge adds guest records alongside existing habits. If both journals have an affirmation on the same date, the account’s entry takes precedence.
 
 When you sign in on the same site where you used the browser-only version, choose **Import data** if Habittism finds saved habits, check-ins, or affirmations. The import retains existing cloud entries and can be retried without duplicating records.
 
@@ -48,19 +50,21 @@ If you’re moving from a different address, such as the [previous GitHub Pages 
 - Daily and weekday habits count streaks in consecutive scheduled check-ins. Flexible goals count distinct completed days towards a Monday–Sunday target and measure streaks in weeks. The first week’s target is capped at the number of days left. Flexible goals appear in Today while the target is open, and the calendar counts their check-ins on the dates you logged them.
 - Freeze an unfinished scheduled day from habit history to protect the streak. Frozen days stay outside completed totals. For weekly habits, a freeze can excuse one missed day when calculating the streak after the week ends.
 - Numeric goals are complete once the logged amount meets the target. Reminders run in the browser and can notify you once a day while the app is open.
+- Today’s Focus moves partial goals and time-sensitive weekly targets up the queue. Complete a check-in and tap an energy tag or add a short reflection.
+- Insights includes rolling 90-day and 365-day heatmaps and celebrates 7-, 30-, and 100-day streaks for daily and weekday habits. Export your habits, check-ins, reflections, and affirmations as JSON or CSV from **Settings → Data**.
 
 ## Verify changes
 
 ```sh
 npm ci
-npm run lint
+npm run lint -- --deny-warnings
 npm run build
+npm run test:rls
 ```
 
-To run the browser smoke test with isolated Supabase HTTP fixtures, install Playwright temporarily, download Chromium, and run the test. The test starts Vite on a local port.
+The browser test starts Vite on a local port and uses isolated Supabase HTTP fixtures.
 
 ```sh
-npm install --no-save playwright
 npx playwright install chromium
 npm run test:e2e
 ```

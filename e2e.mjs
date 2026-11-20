@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createServer } from 'vite'
@@ -70,6 +70,22 @@ async function mockSupabase(route) {
   }
 
   assert.equal(request.headers().authorization, `Bearer ${token}`)
+  if (table === 'rpc' && rpc === 'merge_guest_journal') {
+    const { payload } = request.postDataJSON()
+    for (const habit of payload.habits) {
+      const id = `guest-${habit.id}`
+      if (!tables.habits.has(id)) tables.habits.set(id, { ...habit, id, user_id: user.id })
+    }
+    for (const log of payload.logs) {
+      const row = { ...log, habit_id: `guest-${log.habit_id}`, user_id: user.id }
+      const key = keyFor('habit_logs', row)
+      if (!tables.habit_logs.has(key)) tables.habit_logs.set(key, row)
+    }
+    for (const note of payload.affirmations) {
+      if (!tables.daily_affirmations.has(note.day)) tables.daily_affirmations.set(note.day, { ...note, user_id: user.id })
+    }
+    return send(null)
+  }
   if (table === 'rpc' && rpc === 'import_legacy_journal') {
     const { payload } = request.postDataJSON()
     for (const habit of payload.habits) {
@@ -93,9 +109,10 @@ async function mockSupabase(route) {
       failNextNote = false
       return send({ code: 'TEST_WRITE', message: 'Test write failed' }, 400)
     }
-    const row = request.postDataJSON()
-    assert.equal(table === 'profiles' ? row.id : row.user_id, user.id)
-    tables[table].set(keyFor(table, row), row)
+    for (const row of [].concat(request.postDataJSON())) {
+      assert.equal(table === 'profiles' ? row.id : row.user_id, user.id)
+      tables[table].set(keyFor(table, row), row)
+    }
     return send(undefined, 201)
   }
   assert.equal(endpoint.searchParams.get('user_id'), `eq.${user.id}`)
@@ -125,6 +142,9 @@ try {
   const screenshot = async (name) => { if (shots) await page.screenshot({ path: join(shots, `${name}.png`), fullPage: true }) }
 
   await page.goto(url)
+  await page.getByText('Create your first habit to start tracking.').waitFor()
+  assert.equal(tables.habits.size, 0)
+  await page.getByRole('button', { name: 'Sign in or sign up' }).click()
   await page.getByRole('heading', { name: 'Welcome back.' }).waitFor()
   await page.getByRole('button', { name: 'Continue with GitHub' }).waitFor()
   await page.getByRole('button', { name: 'Use a magic link' }).click()
@@ -206,6 +226,11 @@ try {
   await page.getByRole('searchbox', { name: 'Search habits' }).fill('unknown')
   await page.getByText('No habits match your filters.').waitFor()
   await navigate('Insights')
+  assert.equal(await page.getByRole('group', { name: 'Consistency for the last 90 days' }).getByRole('button').count(), 90)
+  await page.getByRole('button', { name: 'Annual', exact: true }).click()
+  assert.equal(await page.getByRole('group', { name: 'Consistency for the last 365 days' }).getByRole('button').count(), 365)
+  await page.getByRole('heading', { name: 'Streak milestones' }).waitFor()
+  for (const badge of ['7d', '30d', '100d']) await page.getByText(badge, { exact: true }).waitFor()
   await page.getByRole('button', { name: 'Monthly', exact: true }).click()
   await page.getByRole('list', { name: 'Monthly completion rates' }).waitFor()
   await screenshot('insights-light')
@@ -274,12 +299,53 @@ try {
   assert.equal(await page.getByRole('navigation').evaluate((nav) => nav.scrollWidth <= nav.clientWidth), true)
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
-  await page.getByRole('heading', { name: 'Welcome back.' }).waitFor()
+  await page.getByText('Create your first habit to start tracking.').waitFor()
   assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark')
+
+  await page.getByRole('button', { name: 'Quick-Start Templates' }).click()
+  await page.getByRole('button', { name: 'Add Health & Hydration' }).click()
+  await navigate('Today')
+  await page.getByRole('heading', { name: 'Today’s Focus' }).waitFor()
+  const walk = page.getByRole('button', { name: 'Complete Walk outside' })
+  await walk.press('Space')
+  assert.equal(await walk.getAttribute('aria-pressed'), 'true')
+  await walk.press('Enter')
+  await page.getByRole('button', { name: /Walk outside.*per week/ }).click()
+  await page.getByRole('button', { name: 'Streak freeze' }).click()
+  await page.getByRole('button', { name: /Friday, November 20, 2026, No check-in/ }).click()
+  await close()
+  await page.getByText('Frozen', { exact: true }).waitFor()
+  await page.getByRole('spinbutton', { name: 'Drink water amount' }).fill('2')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByLabel('Reflection for Drink water').click()
+  await page.getByRole('button', { name: 'Steady', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Daily note', exact: true }).fill('=Better, "one sip at a time"')
+  await page.getByRole('button', { name: 'Save note', exact: true }).click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  const [json] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export JSON' }).click()])
+  const exported = JSON.parse(await readFile(await json.path(), 'utf8'))
+  const guestHabit = exported.habits.find((habit) => habit.name === 'Drink water')
+  assert.equal(exported.logs[guestHabit.id]['2026-11-20'].note, '=Better, "one sip at a time"')
+  const [csv] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export CSV' }).click()])
+  assert.match(await readFile(await csv.path(), 'utf8'), /"'=Better, ""one sip at a time"""/)
+  await close()
+  await page.reload()
+  await page.getByRole('progressbar', { name: 'Drink water progress' }).waitFor()
+  assert.equal(await page.getByRole('progressbar', { name: 'Drink water progress' }).getAttribute('value'), '2')
+  await page.getByRole('button', { name: 'Sign in or sign up' }).click()
   await page.getByRole('button', { name: 'Continue with GitHub' }).click()
   await page.getByRole('heading', { name: 'Good morning, Avery.' }).waitFor()
+  await page.getByText('Your guest journal was merged.', { exact: false }).waitFor()
+  const merged = tables.habit_logs.get(`guest-${guestHabit.id}:2026-11-20`)
+  assert.equal(merged.note, '=Better, "one sip at a time"')
+  assert.equal(merged.mood, 'steady')
+  assert.equal(tables.habits.size, 6)
+  assert.equal(await page.evaluate(() => localStorage.getItem('habittism-guest-v1')), null)
+  await page.reload()
+  await page.getByLabel('Reflection for Drink water').click()
+  assert.equal(await page.getByRole('textbox', { name: 'Daily note', exact: true }).inputValue(), '=Better, "one sip at a time"')
   assert.deepEqual(errors, [])
-  console.log('PASS mobile layout, theme persistence, reminders, file import, sign-out, and GitHub OAuth callback')
+  console.log('PASS mobile layout, reminders, file import, guest templates, keyboard check-ins, reflections, exports, and OAuth guest merge')
 } finally {
   await browser?.close()
   await server.close()

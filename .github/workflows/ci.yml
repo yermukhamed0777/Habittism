@@ -25,10 +25,19 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint -- --deny-warnings
 
       - name: Type-check & build
         run: npm run build
+
+      - name: Verify PostgreSQL row ownership
+        run: npm run test:rls
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify desktop and mobile journal flows
+        run: npm run test:e2e
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
