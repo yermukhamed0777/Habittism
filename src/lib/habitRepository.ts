@@ -100,7 +100,9 @@ export function habitRepository(client: SupabaseClient, userId: string) {
      * only updates the `archived` column.
      */
     updateHabit(id: string, archived: boolean) {
-      return checked(client.from('habits').update({ archived }).eq('user_id', userId).eq('id', id))
+      const data: Record<string, any> = { archived }
+      if (archived) data.archived_at = new Date().toISOString()
+      return checked(client.from('habits').update(data).eq('user_id', userId).eq('id', id))
     },
 
     writeLog(id: string, day: string, log: HabitLog | null) {

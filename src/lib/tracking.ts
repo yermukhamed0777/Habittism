@@ -45,6 +45,7 @@ export interface TrackedHabit extends HabitInput {
   id: string
   createdOn: string
   archived: boolean
+  archived_at?: string
 }
 
 export interface HabitLog {
@@ -88,10 +89,11 @@ export function focusQueue(habits: TrackedHabit[], journal: Journal, today: Date
   const week = startOfWeekMonday(today)
   const daysRemaining = 7 - differenceInCalendarDays(today, week)
   return habits.map((habit) => {
+    const archivedAtKey = habit.archived_at ? toKey(new Date(habit.archived_at)) : null
     const logs = journal.logs[habit.id] ?? {}
     const log = logs[key]
-    if (log?.frozen) return { habit, score: 4 }
-    if (isComplete(habit, log)) return { habit, score: 3 }
+    if ((archivedAtKey && key < archivedAtKey) || log?.frozen) return { habit, score: 4 }
+    if (!log?.frozen && isComplete(habit, log)) return { habit, score: 3 }
     if (log?.value) return { habit, score: 0 }
     if (habit.schedule === 'weekly') {
       const { target, done } = weekProgress(habit, logs, week, key)
@@ -102,7 +104,8 @@ export function focusQueue(habits: TrackedHabit[], journal: Journal, today: Date
 }
 
 export function isScheduled(habit: TrackedHabit, date: Date, key = toKey(date)) {
-  if (habit.archived || key < habit.createdOn || habit.schedule === 'weekly') return false
+  const archivedAtKey = habit.archived_at ? toKey(new Date(habit.archived_at)) : null
+  if (habit.archived || key < habit.createdOn || (archivedAtKey && key < archivedAtKey) || habit.schedule === 'weekly') return false
   return habit.schedule === 'daily' || habit.weekdays.includes(date.getDay())
 }
 
@@ -171,9 +174,12 @@ export function habitStats(habit: TrackedHabit, logs: HabitLogs, today: Date) {
 
   const start = fromKey(habit.createdOn)
   if (habit.archived) return { current, best, total, completed, opportunities, rate: 0 }
+  const archivedAtKey = habit.archived_at ? toKey(new Date(habit.archived_at)) : null
   if (habit.schedule === 'weekly' && start <= today) {
     const activeWeek = startOfWeekMonday(today)
-    for (let week = startOfWeekMonday(start); week <= activeWeek; week = addWeeks(week, 1)) {
+    const archivedDate = habit.archived_at ? fromKey(habit.archived_at) : null
+    const firstWeek = archivedDate ? startOfWeekMonday(archivedDate) : startOfWeekMonday(start)
+    for (let week = firstWeek; week <= activeWeek; week = addWeeks(week, 1)) {
       const { target, done, frozen } = weekProgress(habit, logs, week, todayKey)
       opportunities += target
       completed += Math.min(target, done)
@@ -186,7 +192,7 @@ export function habitStats(habit: TrackedHabit, logs: HabitLogs, today: Date) {
   } else {
     for (let date = start; date <= today; date = addDays(date, 1)) {
       const key = toKey(date)
-      if (!isScheduled(habit, date, key)) continue
+      if ((archivedAtKey && key < archivedAtKey) || !isScheduled(habit, date, key)) continue
       const log = logs[key]
       opportunities++
       if (isComplete(habit, log)) {
