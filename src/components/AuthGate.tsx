@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { ArrowRight, GitFork, Leaf } from 'lucide-react'
 import { authRedirect, callbackError, supabase } from '../lib/supabase'
+import { ThemeToggle } from './ThemeToggle'
 import './auth.css'
 
 type Mode = 'signin' | 'signup' | 'magic' | 'reset' | 'recovery'
@@ -19,7 +20,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="auth-shell">
       <div className="auth-card">
-        <div className="auth-brand"><Leaf size={19} aria-hidden="true" /> Habittism</div>
+        <div className="auth-top"><div className="auth-brand"><Leaf size={19} aria-hidden="true" /> Habittism</div><ThemeToggle /></div>
         {children}
       </div>
     </main>

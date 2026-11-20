@@ -4,16 +4,19 @@ import { CalendarDays, ChartNoAxesColumnIncreasing, House, Leaf, ListChecks, Plu
 import { AuthShell } from './components/AuthGate'
 import { JournalDialog } from './components/JournalDialog'
 import { LegacyImport } from './components/LegacyImport'
+import { ReminderSettings } from './components/ReminderSettings'
+import { ThemeToggle } from './components/ThemeToggle'
 import { TrackerCalendar } from './components/TrackerCalendar'
 import { TrackerHabitForm } from './components/TrackerHabitForm'
 import { TrackerDay, TrackerHistory } from './components/TrackerHistory'
 import { TrackerInsights } from './components/TrackerInsights'
 import { DailyGreeting, HabitLibrary, TodayView } from './components/TrackerViews'
 import { useToday } from './hooks/useToday'
+import { useReminder } from './hooks/useReminder'
 import { toKey } from './lib/dates'
 import { habitRepository, type HabitRepository } from './lib/habitRepository'
 import { browserBackupImported, markBrowserBackupImported, readBrowserBackup, type LegacyJournal } from './lib/legacyJournal'
-import { dayEntries, isOnToday, type Journal } from './lib/tracking'
+import { dayEntries, isComplete, isOnToday, type Journal } from './lib/tracking'
 import { useCloudJournal } from './store/useCloudJournal'
 
 const navigation = [
@@ -76,6 +79,12 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
   const [imported, setImported] = useState(false)
   const [importError, setImportError] = useState('')
   const due = tracker.journal.habits.filter((habit) => isOnToday(habit, tracker.journal.logs[habit.id] ?? {}, today))
+  const todayKey = toKey(today)
+  const outstanding = due.filter((habit) => {
+    const log = tracker.journal.logs[habit.id]?.[todayKey]
+    return !log?.frozen && !isComplete(habit, log)
+  }).length
+  const reminder = useReminder(session.user.id, outstanding)
   const selectedHabit = dialog?.kind === 'habit' && tracker.journal.habits.find((habit) => habit.id === dialog.id)
   const close = () => setDialog(null)
   const openHabit = (id: string, day?: string) => setDialog({ kind: 'habit', id, day })
@@ -130,8 +139,9 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
               onClick={() => setView(id)}><Icon size={16} /> {label}</button>)}
           </nav>
           <div className="header-actions">
+            <ThemeToggle />
             <button className="icon-button" type="button" aria-label="Settings" onClick={() => setDialog({ kind: 'settings' })}><Settings size={19} /></button>
-            <button className="primary header-add" type="button" onClick={onAdd}><Plus size={17} /> <span>New habit</span></button>
+            <button className="primary header-add" type="button" onClick={onAdd} aria-label="New habit"><Plus size={17} /> <span>New habit</span></button>
           </div>
         </div>
       </header>
@@ -165,7 +175,10 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
       {dialog?.kind === 'importing' && <JournalDialog title="Importing previous data" onClose={close} busy><p role="status">Moving your habits, check-ins, and affirmations to this account…</p></JournalDialog>}
       {dialog?.kind === 'settings' && <JournalDialog title="Settings" subtitle={session.user.email} onClose={close}>
         {accountError && <p className="error" role="alert">{accountError}</p>}
-        <button type="button" className="secondary" disabled={!!tracker.sync.pending} onClick={() => setDialog({ kind: 'import' })}>Import browser backup</button>
+        <ReminderSettings reminder={reminder} />
+        <div className="settings-section"><h3>Data</h3>
+          <button type="button" className="secondary" disabled={!!tracker.sync.pending} onClick={() => setDialog({ kind: 'import' })}>Import browser backup</button>
+        </div>
         {!!tracker.sync.pending && <p>Finish syncing changes before signing out.</p>}
         <div className="dialog-actions"><button type="button" className="secondary" disabled={!!tracker.sync.pending || signingOut} onClick={() => void signOut()}>Sign out</button></div>
       </JournalDialog>}

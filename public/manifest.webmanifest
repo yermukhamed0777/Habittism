@@ -1,15 +1,14 @@
 {
   "name": "Habittism",
   "short_name": "Habittism",
-  "description": "A professional habit tracker with a GitHub-style contribution calendar and a modern liquid glass interface.",
-  "start_url": "/",
+  "description": "A daily habit tracker and affirmation journal.",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#06070B",
-  "theme_color": "#06070B",
-  "orientation": "portrait-primary",
+  "background_color": "#f5f4ed",
+  "theme_color": "#f5f4ed",
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

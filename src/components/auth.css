@@ -16,6 +16,7 @@
   box-shadow: 0 12px 35px #242b2010;
 }
 
+.auth-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .auth-brand { display: flex; align-items: center; gap: .6rem; font-weight: 750; }
 .auth-card h1 { font: 400 clamp(2.2rem, 7vw, 3.2rem)/1.08 var(--serif, Georgia, serif); margin: 1.5rem 0; }
 .auth-card p { color: var(--muted, #586455); margin-block: .6rem; overflow-wrap: anywhere; }
