@@ -180,4 +180,3 @@ export function HabitLibrary({ tracker, today, onAdd, onOpenHabit, due }: HabitV
     </>
   )
 }
-

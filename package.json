@@ -2,27 +2,21 @@
   "name": "habittism",
   "private": true,
   "version": "0.1.0",
-  "description": "A professional habit tracker with a GitHub-style contribution calendar and a modern liquid glass interface.",
+  "description": "A private habit tracker and affirmation journal.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "node e2e.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.2",
-    "@tailwindcss/vite": "^4.3.5",
-    "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.75.0",
-    "motion": "^14.14.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "recharts": "^3.11.0",
-    "tailwind-merge": "^3.7.0",
-    "tailwindcss": "^4.3.5",
-    "zustand": "^5.1.0"
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

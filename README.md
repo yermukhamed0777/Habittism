@@ -1,185 +1,68 @@
-<div align="center">
-
-<img src="public/favicon.svg" width="88" height="88" alt="Habittism logo" />
-
 # Habittism
 
-**Build the habits that build you.**
+Habittism is a private habit tracker and affirmation journal. Create habits from a blank slate, check in on the schedules you set, and explore progress in a calendar or in Insights.
 
-A professional habit tracker — web app, installable as a PWA — with a
-GitHub-style contribution calendar and a modern *liquid glass* interface.
+## Run locally
 
-[Live preview](https://yermukhamed0777.github.io/Habittism/) · [Report an issue](https://github.com/yermukhamed0777/Habittism/issues) · [MIT License](./LICENSE)
+1. Use Node.js 22.12 or newer and run `npm ci`.
+2. Create a Supabase project. In its **SQL Editor**, open a new query and run the full contents of [supabase/schema.sql](supabase/schema.sql) once. This creates the tables, ownership policies, and import function.
+3. Copy [`.env.example`](.env.example) to `.env.local`. Set `VITE_SUPABASE_URL` to the Project URL and `VITE_SUPABASE_ANON_KEY` to its publishable or legacy anon key. Vite exposes these two values in the browser bundle. Keep Supabase service-role and secret keys in server environments.
+4. In Supabase **Authentication → URL Configuration**, add `http://localhost:5173/` to **Redirect URLs**. Set the **Site URL** to that address while developing a local-only project. [Supabase redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls)
+5. Run `npm run dev` and open [the local app](http://localhost:5173/).
 
-</div>
+Email and password, email confirmation, magic links, password reset, and GitHub sign-in use Supabase Auth. For public email delivery, configure **Custom SMTP** in Supabase Authentication. The default mail service only delivers to authorized project team addresses. [Supabase SMTP setup](https://supabase.com/docs/guides/auth/auth-smtp)
 
----
+To enable GitHub sign-in, create a GitHub OAuth App. Use your Habittism URL as the homepage and copy the callback URL from Supabase’s **GitHub** auth provider into the OAuth App’s **Authorization callback URL**. Enable the provider in Supabase and enter the GitHub client ID and secret there. [Supabase GitHub sign-in setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-github)
 
-## ✨ Highlights
+## Deploy on Vercel
 
-### 📅 Contribution calendar
-A full 53-week heatmap, modelled on the GitHub contribution graph. Each cell
-represents one day; intensity reflects **the ratio of scheduled habits you
-actually completed**. Scroll back through previous years with the arrow
-controls.
+1. Complete the Supabase schema and auth setup above. In Vercel, select **Add New → Project**, connect GitHub, and import `yermukhamed0777/Habittism`. If the repository is missing from the list, grant the Vercel GitHub App access to it. [Vercel GitHub integration](https://vercel.com/docs/git/vercel-for-github)
+2. Leave **Root Directory** at the repository root and use the **Vite** preset. [vercel.json](vercel.json) sets `npm run build` and the `dist` output directory. The app uses in-page navigation and returns from sign-in at the root URL.
+3. Under **Environment Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` before the first deploy. In an existing project, use **Settings → Environment Variables**, select **Production**, and redeploy after saving. Add the values to **Preview** if you want preview deployments to connect to Supabase. [Vercel environment variables](https://vercel.com/docs/environment-variables)
+4. Deploy. Confirm that **Settings → Environments → Production → Branch Tracking** uses `main`. Future pushes to `main` will deploy to production. [Vercel branch tracking](https://vercel.com/docs/git#customizing-the-production-branch)
+5. Copy the production URL from Vercel. In Supabase **Authentication → URL Configuration**, set it as **Site URL** and add the exact root URL with a trailing slash to **Redirect URLs**. Add any preview URLs you use for auth, and keep `http://localhost:5173/` if you run locally. [Supabase redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls)
+6. On the deployed site, create a test account, confirm email or sign in with GitHub, create a habit, and check that its check-in and today’s affirmation survive a reload.
 
-Levels are assigned by *rank* rather than fixed thresholds, so the map always
-uses its full colour range — exactly how GitHub breaks ties in its own graph.
+## Move data from the previous app
 
-### 🧊 Liquid glass design system
-Everything is built on a reusable frosted-glass primitive:
+When you sign in on the same site where you used the browser-only version, choose **Import data** if Habittism finds saved habits, check-ins, or affirmations. The import retains existing cloud entries and can be retried without duplicating records.
 
-- `backdrop-filter: blur() saturate()` over a slowly drifting aurora field
-- Inner top-highlight + bottom-shadow for real depth
-- An animated specular sheen that sweeps across each panel
-- Fine film grain and a faint grid for texture
-- Fully responsive — the same components serve desktop and mobile
+If you’re moving from a different address, such as the [previous GitHub Pages site](https://yermukhamed0777.github.io/Habittism/), open that address in the browser that holds your data. Paste the following into its developer console to download a local backup. On the new site, sign in and open **Settings → Import browser backup** to upload it.
 
-### 🧠 Real habit semantics
-This is not a checklist with a counter bolted on.
-
-| Concept | Behaviour |
-| --- | --- |
-| **Scheduling** | Every habit has a weekly schedule (Mon/Wed/Fri, daily, …). |
-| **Streaks** | Measured across *scheduled* days only — a Mon/Wed/Fri habit is not broken by Tuesday. |
-| **Rest days** | Habits that aren't due today are marked **Rest** and don't count against you. |
-| **Consistency** | Completions ÷ scheduled opportunities, not ÷ calendar days. |
-| **Today** | Progress ring measures scheduled completions only. |
-
-### 📊 Dashboard
-- Hero panel with a live streak dial
-- Four KPI cards (current streak, perfect days, consistency, total check-ins)
-- Weekly momentum area chart across the last 14 weeks
-- Per-habit cards with streaks, weekly progress bars and lifetime consistency
-
-### ✏️ Full interactivity
-- Create habits with an icon, category, accent colour and weekly target
-- Toggle any habit on the current day, from either the Today panel or the card
-- Delete habits (with a confirmation prompt)
-- Reset the demo dataset at any time
-
-### 📦 Installable
-Ships as a PWA with a web manifest and maskable icons — add it to your home
-screen and it behaves like a native app.
-
----
-
-## 🚀 Getting started
-
-```bash
-git clone https://github.com/yermukhamed0777/Habittism.git
-cd Habittism
-npm install
-npm run dev
+```js
+(() => {
+  const backup = localStorage.getItem('habittism-store-v1')
+  if (!backup) throw new Error('No Habittism backup was found in this browser.')
+  const url = URL.createObjectURL(new Blob([backup], { type: 'application/json' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'habittism-backup.json'
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+})()
 ```
 
-Open <http://localhost:5173>.
+## How tracking works
 
-### Scripts
+- Dates follow the browser’s local time. A habit starts contributing to scheduled totals on its creation date. Earlier completions you add from habit history appear as optional check-ins.
+- Daily and weekday habits count streaks in consecutive scheduled check-ins. Flexible goals count distinct completed days towards a Monday–Sunday target and measure streaks in weeks. The first week’s target is capped at the number of days left. Flexible goals appear in Today while the target is open, and the calendar counts their check-ins on the dates you logged them.
+- Freeze an unfinished scheduled day from habit history to protect the streak. Frozen days stay outside completed totals. For weekly habits, a freeze can excuse one missed day when calculating the streak after the week ends.
+- Numeric goals are complete once the logged amount meets the target. Reminders run in the browser and can notify you once a day while the app is open.
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the Vite dev server with HMR |
-| `npm run build` | Type-check with `tsc -b`, then build to `dist/` |
-| `npm run preview` | Serve the production build locally |
-| `npm run lint` | Run oxlint |
+## Verify changes
 
----
-
-## 🏗️ Tech stack
-
-| Layer | Choice |
-| --- | --- |
-| Framework | React 19 + TypeScript |
-| Build | Vite 8 |
-| Styling | Tailwind CSS v4 (CSS-first `@theme` tokens) |
-| Animation | Motion (Framer Motion) |
-| Charts | Recharts |
-| State | Zustand + `persist` middleware (localStorage) |
-| Icons | Lucide React |
-| Dates | date-fns |
-
-### Architecture
-
-```
-src/
-├── components/            # Presentational components
-│   ├── ActivityChart.tsx       # Recharts momentum area chart
-│   ├── AddHabitModal.tsx       # Create-habit dialog
-│   ├── Background.tsx          # Aurora field + grain + grid
-│   ├── ContributionCalendar.tsx# 53-week heatmap
-│   ├── GlassPanel.tsx          # Glass primitive + SectionHeading
-│   ├── HabitCard.tsx           # Individual habit card
-│   ├── HabitIcon.tsx           # Icon registry
-│   ├── Hero.tsx                # Hero panel + streak dial
-│   ├── StatCard.tsx            # KPI card
-│   ├── TodayPanel.tsx          # Today's checklist + progress ring
-│   └── TopBar.tsx              # Sticky glass navigation
-├── data/seed.ts          # Seed habits + deterministic history generator
-├── hooks/useHabitStats.ts# Stats, streaks, day aggregation
-├── lib/
-│   ├── dates.ts           # Calendar grid, streak & date helpers
-│   └── utils.ts           # `cn()` class merger
-├── store/useHabitStore.ts# Zustand store with persistence
-├── types.ts               # Domain types
-├── App.tsx                # Page composition
-└── index.css              # Design tokens + liquid glass system
+```sh
+npm ci
+npm run lint
+npm run build
 ```
 
-### Design tokens
+To run the browser smoke test with isolated Supabase HTTP fixtures, install Playwright temporarily, download Chromium, and run the test. The test starts Vite on a local port.
 
-Tokens live in `src/index.css` under `@theme`, so they generate utilities
-automatically:
-
-```css
---color-ink-950: #05060a;   /* canvas            */
---color-iris-500: #8b5cf6;  /* primary accent   */
---color-aqua-400: #22d3ee;  /* secondary accent */
---color-mist-100: #e9ecf4;  /* primary text     */
+```sh
+npm install --no-save playwright
+npx playwright install chromium
+npm run test:e2e
 ```
 
----
-
-## 🧪 Demo data
-
-The dashboard ships with a full year of seeded history so the calendar and
-analytics are meaningful on first load.
-
-It is **not** random noise. The generator models how habits actually behave:
-
-- A **shared weekly energy** curve — slumps affect every habit at once
-- **Daily energy** variation — tired days, high days
-- **Multi-day "life happens" breaks** — illness, travel, burnout
-- **Per-habit adherence** and a slow upward drift as habits become routine
-
-All of it is deterministic (seeded PRNG), so the demo is identical on every
-device.
-
-> Data is stored locally in your browser via `localStorage`. Nothing leaves
-> your device. Use **Reset** in the header to restore the demo dataset.
-
----
-
-## 🛣️ Roadmap
-
-- [x] Contribution calendar with year navigation
-- [x] Liquid glass design system
-- [x] Scheduled habits with schedule-aware streaks
-- [x] Weekly momentum analytics
-- [x] PWA manifest + installable
-- [ ] Cloud sync & cross-device history
-- [ ] Habit templates & streak freezes
-- [ ] Reminders and notification scheduling
-- [ ] Native app wrappers (React Native / Capacitor)
-
----
-
-## 👤 Author
-
-**Yermukhamed TUKTIBAY** — Materials Science and Engineering, City University of Hong Kong
-
----
-
-<div align="center">
-  <sub>MIT License · Built with React, Tailwind CSS and Motion</sub>
-</div>
+[MIT License](LICENSE)
