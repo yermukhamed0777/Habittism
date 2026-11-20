@@ -1,104 +1,286 @@
-/**
- * End-to-end smoke test for Habittism.
- *
- * Playwright is intentionally *not* a project dependency — it would add a
- * large browser download to every install and to CI. Install it on demand:
- *
- *   npm install --no-save playwright && npx playwright install chromium
- *   npm run dev            # in another terminal
- *   node e2e.mjs
- */
-import { chromium } from 'playwright'
+import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { createServer } from 'vite'
 
-const URL = 'http://localhost:5173/'
-const browser = await chromium.launch()
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+// Run with Node and Chromium from Playwright. The test provides its own
+// Supabase HTTP fixtures and leaves any configured project untouched.
+const { chromium } = await import(process.env.HABITTISM_PLAYWRIGHT
+  ? pathToFileURL(process.env.HABITTISM_PLAYWRIGHT).href
+  : 'playwright')
+const origin = 'https://habittism-test.supabase.co'
+process.env.VITE_SUPABASE_URL = origin
+process.env.VITE_SUPABASE_ANON_KEY = 'sb_publishable_habittism_smoke_test'
 
-const errors = []
-page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
-page.on('pageerror', (e) => errors.push(`PAGEERROR: ${e.message}`))
+const server = await createServer({ logLevel: 'error', server: { host: '127.0.0.1', port: 0 } })
+await server.listen()
+const url = server.resolvedUrls.local[0]
+let browser
 
-await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 })
-await page.waitForTimeout(2000)
+const user = {
+  id: '00000000-0000-4000-8000-000000000001',
+  email: 'avery@example.test',
+  aud: 'authenticated',
+  role: 'authenticated',
+  user_metadata: { full_name: 'Avery' },
+  app_metadata: {},
+  created_at: '2026-01-01T00:00:00Z',
+}
+const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
+const token = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + 86_400 })}.c2ln`
+const tables = {
+  profiles: new Map(), habits: new Map(), habit_logs: new Map(), daily_affirmations: new Map(),
+}
+let failNextNote = false
 
-const results = []
-const check = (name, ok, detail = '') =>
-  results.push(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+function keyFor(table, row) {
+  if (table === 'habit_logs') return `${row.habit_id}:${row.day}`
+  if (table === 'daily_affirmations') return row.day
+  return row.id
+}
 
-// 1. Core content renders
-check('title', (await page.title()).includes('Habittism'), await page.title())
-check('hero renders', await page.getByText('Build the habits', { exact: true }).isVisible())
-check(
-  'calendar grid present',
-  (await page.locator('[title*="scheduled completed on"]').count()) > 300,
-  `${await page.locator('[title*="scheduled completed on"]').count()} cells`,
-)
-
-// 2. Heatmap levels are all represented
-const levels = await page.evaluate(() => {
-  const counts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 }
-  document.querySelectorAll('[title*="scheduled completed on"]').forEach((el) => {
-    const cls = el.className
-    for (let i = 0; i <= 4; i++) if (cls.includes(`lvl-${i}`)) counts[i]++
-  })
-  return counts
-})
-check('heat levels spread', Object.values(levels).filter((v) => v > 0).length >= 4, JSON.stringify(levels))
-
-// 3. Toggle a habit
-const firstCheck = page.locator('button[aria-label*="Mark"]').first()
-const before = await firstCheck.getAttribute('aria-label')
-await firstCheck.click()
-await page.waitForTimeout(600)
-const after = await firstCheck.getAttribute('aria-label')
-check('habit toggle works', before !== after, `${before} -> ${after}`)
-
-// 4. Persistence across reload
-await page.reload({ waitUntil: 'networkidle' })
-await page.waitForTimeout(1800)
-const persisted = await page.locator('button[aria-label*="Mark"]').first().getAttribute('aria-label')
-check('state persists after reload', persisted === after, persisted)
-
-// 5. Modal opens and creates a habit
-await page.locator('button:has-text("New habit")').first().click()
-await page.waitForTimeout(700)
-check('modal opens', await page.locator('text=Small actions, repeated with intent.').isVisible())
-
-await page.locator('input[placeholder*="meditation"]').fill('Cold shower')
-await page.locator('button:has-text("Create habit")').click()
-await page.waitForTimeout(800)
-check('habit created', await page.locator('text=Cold shower').first().isVisible())
-
-// 6. Calendar year navigation
-const rangeBefore = await page.locator('span:has-text("–")').first().innerText()
-await page.locator('button[aria-label="Previous year"]').click()
-await page.waitForTimeout(700)
-const rangeAfter = await page.locator('span:has-text("–")').first().innerText()
-check('year navigation works', rangeBefore !== rangeAfter, `${rangeBefore} -> ${rangeAfter}`)
-
-// 7. Chart rendered
-const chartInfo = await page.evaluate(() => {
-  const svg = document.querySelector('.recharts-wrapper')
-  if (!svg) return null
-  const r = svg.getBoundingClientRect()
-  return {
-    w: Math.round(r.width),
-    h: Math.round(r.height),
-    area: svg.querySelectorAll('.recharts-area-area').length,
-    dots: svg.querySelectorAll('.recharts-line-curve').length,
+async function mockSupabase(route) {
+  const request = route.request()
+  const endpoint = new URL(request.url())
+  const method = request.method()
+  const [service, , table, rpc] = endpoint.pathname.slice(1).split('/')
+  const headers = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+    'access-control-allow-headers': '*',
   }
-})
-check('chart rendered', !!chartInfo && chartInfo.area > 0, JSON.stringify(chartInfo))
+  const send = (json, status = 200) => route.fulfill(json === undefined ? { status, headers } : { status, headers, json })
+  if (method === 'OPTIONS') return send(undefined, 204)
+  if (service === 'auth') {
+    if (table === 'token') return send({ access_token: token, refresh_token: 'smoke-test-refresh-token', expires_in: 86_400, token_type: 'bearer', user })
+    if (table === 'authorize') {
+      assert.equal(endpoint.searchParams.get('provider'), 'github')
+      const callback = new URL(endpoint.searchParams.get('redirect_to'))
+      assert.equal(callback.href, url)
+      callback.hash = new URLSearchParams({
+        access_token: token, refresh_token: 'smoke-test-refresh-token', expires_in: '86400', token_type: 'bearer', type: 'signup',
+      }).toString()
+      return route.fulfill({ status: 302, headers: { location: callback.href } })
+    }
+    if (table === 'user') return send(user)
+    if (table === 'logout') return send(undefined, 204)
+    if (table === 'otp' || table === 'recover') return send({})
+    throw new Error(`Unmocked auth route ${endpoint.pathname}`)
+  }
 
-// 8. No horizontal overflow
-const dims = await page.evaluate(() => ({
-  scrollW: document.documentElement.scrollWidth,
-  clientW: document.documentElement.clientWidth,
-}))
-check('no horizontal overflow', dims.scrollW <= dims.clientW + 1, JSON.stringify(dims))
+  assert.equal(request.headers().authorization, `Bearer ${token}`)
+  if (table === 'rpc' && rpc === 'import_legacy_journal') {
+    const { payload } = request.postDataJSON()
+    for (const habit of payload.habits) {
+      const id = `imported-${habit.legacy_id}`
+      if (!tables.habits.has(id)) tables.habits.set(id, { ...habit, id, user_id: user.id })
+    }
+    for (const log of payload.logs) {
+      const row = { habit_id: `imported-${log.legacy_id}`, day: log.day, value: 1, frozen: false, user_id: user.id }
+      const key = keyFor('habit_logs', row)
+      if (!tables.habit_logs.has(key)) tables.habit_logs.set(key, row)
+    }
+    for (const note of payload.affirmations) {
+      if (!tables.daily_affirmations.has(note.day)) tables.daily_affirmations.set(note.day, { ...note, user_id: user.id })
+    }
+    return send(null)
+  }
 
-console.log(results.join('\n'))
-console.log('\nconsole errors:', errors.length ? errors.join(' | ') : 'none')
-console.log('\nFAILURES:', results.filter((r) => r.startsWith('FAIL')).length)
+  assert.ok(tables[table], `Unmocked data route ${endpoint.pathname}`)
+  if (method === 'POST') {
+    if (table === 'daily_affirmations' && failNextNote) {
+      failNextNote = false
+      return send({ code: 'TEST_WRITE', message: 'Test write failed' }, 400)
+    }
+    const row = request.postDataJSON()
+    assert.equal(table === 'profiles' ? row.id : row.user_id, user.id)
+    tables[table].set(keyFor(table, row), row)
+    return send(undefined, 201)
+  }
+  assert.equal(endpoint.searchParams.get('user_id'), `eq.${user.id}`)
+  const match = (row) => [...endpoint.searchParams].every(([field, filter]) => !filter.startsWith('eq.') || filter.slice(3) === row[field])
+  if (method === 'DELETE') {
+    for (const [key, row] of tables[table]) if (match(row)) tables[table].delete(key)
+    return send(undefined, 204)
+  }
+  assert.equal(method, 'GET')
+  return send([...tables[table].values()].filter(match))
+}
 
-await browser.close()
+try {
+  browser = await chromium.launch()
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    timezoneId: 'Asia/Shanghai',
+    colorScheme: 'light',
+  })
+  await context.route(`${origin}/**`, mockSupabase)
+  const page = await context.newPage()
+  await page.clock.setFixedTime(new Date('2026-11-20T09:30:00+08:00'))
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const shots = process.env.HABITTISM_TEST_SCREENSHOTS
+  if (shots) await mkdir(shots, { recursive: true })
+  const screenshot = async (name) => { if (shots) await page.screenshot({ path: join(shots, `${name}.png`), fullPage: true }) }
+
+  await page.goto(url)
+  await page.getByRole('heading', { name: 'Welcome back.' }).waitFor()
+  await page.getByRole('button', { name: 'Continue with GitHub' }).waitFor()
+  await page.getByRole('button', { name: 'Use a magic link' }).click()
+  await page.getByLabel('Email').fill(user.email)
+  await page.getByRole('button', { name: 'Send sign-in link' }).click()
+  await page.getByText('Check your email for a sign-in link.').waitFor()
+  await page.getByRole('button', { name: 'Back to sign in' }).click()
+  await page.getByLabel('Password').fill('a-testing-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await page.getByRole('heading', { name: 'Good morning, Avery.' }).waitFor()
+  await page.getByText('Create your first habit to start tracking.').waitFor()
+  assert.equal(tables.habits.size, 0)
+  await screenshot('greeting-light')
+  console.log('PASS email/magic-link screens and blank onboarding')
+
+  const navigate = (name) => page.getByRole('navigation').getByRole('button', { name, exact: true }).click()
+  const newHabit = () => page.locator('header').getByRole('button', { name: 'New habit' }).click()
+  const close = () => page.getByRole('button', { name: 'Close dialog' }).click()
+  const synced = () => page.getByText('All changes synced', { exact: true }).waitFor()
+
+  await newHabit()
+  await page.getByLabel('Habit name').fill('Morning walk')
+  await page.getByRole('button', { name: 'Create habit' }).click()
+  await page.getByRole('button', { name: 'Complete Morning walk' }).click()
+  await synced()
+  await navigate('Calendar')
+  const yesterday = page.locator('[data-date="2026-11-19"]')
+  assert.match(await yesterday.getAttribute('aria-label'), /0 completed, 0 unfinished/)
+  await yesterday.hover()
+  await page.getByRole('tooltip').getByText('0 completed · 0 unfinished').waitFor()
+  await yesterday.click()
+  await page.getByText('No scheduled habits or check-ins on this date.').waitFor()
+  await close()
+  await navigate('Habits')
+  await page.getByRole('button', { name: /Morning walk.*Every day/ }).click()
+  await page.getByRole('button', { name: 'Previous month' }).click()
+  await page.getByRole('heading', { name: 'October 2026' }).waitFor()
+  await page.getByRole('button', { name: 'Next month' }).click()
+  await page.getByRole('button', { name: /Thursday, November 19, 2026, No check-in/ }).click()
+  await close()
+  await navigate('Calendar')
+  assert.match(await yesterday.getAttribute('aria-label'), /1 completed, 0 unfinished/)
+  await yesterday.click()
+  await page.getByRole('button', { name: 'Complete Morning walk' }).click()
+  await close()
+  assert.match(await yesterday.getAttribute('aria-label'), /0 completed, 0 unfinished/)
+  await screenshot('calendar-light')
+  console.log('PASS temporal calendar counts, hover, daily inspection, and history backfill')
+
+  await newHabit()
+  await page.getByLabel('Habit name').fill('Read pages')
+  await page.getByLabel('Schedule', { exact: true }).selectOption('weekly')
+  await page.getByLabel('Tracking type').selectOption('numeric')
+  await page.getByLabel('Goal per day').fill('20')
+  await page.getByLabel('Unit').fill('pages')
+  await page.getByLabel('Category', { exact: true }).selectOption('custom')
+  await page.getByLabel('Custom category').fill('Learning')
+  await page.getByLabel('Custom icon').fill('📚')
+  await page.getByRole('button', { name: 'Create habit' }).click()
+  await navigate('Today')
+  await page.getByText('0/3 this week').waitFor()
+  await page.getByRole('spinbutton', { name: 'Read pages amount' }).fill('12.5')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  assert.equal(await page.getByRole('progressbar', { name: 'Read pages progress' }).getAttribute('value'), '12.5')
+  await page.getByRole('spinbutton', { name: 'Read pages amount' }).fill('20')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByText('1/3 this week').waitFor()
+  await newHabit()
+  await page.getByLabel('Habit name').fill('Monday stretch')
+  await page.getByLabel('Schedule', { exact: true }).selectOption('weekdays')
+  await page.getByRole('button', { name: 'Wed', exact: true }).click()
+  await page.getByRole('button', { name: 'Fri', exact: true }).click()
+  await page.getByRole('button', { name: 'Create habit' }).click()
+  assert.equal(await page.getByRole('button', { name: /Monday stretch/ }).count(), 0)
+  await navigate('Habits')
+  await page.getByRole('button', { name: /Monday stretch.*Mon/ }).waitFor()
+  await page.getByRole('button', { name: 'Learning', exact: true }).click()
+  assert.equal(await page.getByRole('button', { name: /Morning walk.*Every day/ }).count(), 0)
+  await page.getByRole('searchbox', { name: 'Search habits' }).fill('unknown')
+  await page.getByText('No habits match your filters.').waitFor()
+  await navigate('Insights')
+  await page.getByRole('button', { name: 'Monthly', exact: true }).click()
+  await page.getByRole('list', { name: 'Monthly completion rates' }).waitFor()
+  await screenshot('insights-light')
+  console.log('PASS weekly frequency, numeric progress, category filters, search, and monthly insights')
+
+  await navigate('Today')
+  failNextNote = true
+  await page.getByRole('textbox', { name: 'Daily affirmation' }).fill('I keep showing up.')
+  await page.getByRole('button', { name: 'Retry sync' }).waitFor()
+  await page.getByRole('button', { name: 'Retry sync' }).click()
+  await synced()
+  await page.reload()
+  await page.getByRole('heading', { name: 'Good morning, Avery.' }).waitFor()
+  assert.equal(await page.getByRole('textbox', { name: 'Daily affirmation' }).inputValue(), 'I keep showing up.')
+  assert.equal(tables.daily_affirmations.get('2026-11-20').body, 'I keep showing up.')
+  console.log('PASS optimistic affirmation save, retry, session persistence, and cloud reload')
+
+  await page.evaluate(() => {
+    localStorage.setItem('habittism-store-v1', JSON.stringify({ state: {
+      habits: [{ id: 'legacy', name: 'Evening journal', icon: 'pen', category: 'mind', color: 'iris', targetPerWeek: 7, createdAt: '2026-11-17', archived: false }],
+      completions: { legacy: ['2026-11-17', '2026-11-19'] },
+      affirmations: { '2026-11-19': 'Write a little.' },
+    }, version: 7 }))
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Import data', exact: true }).click()
+  await page.getByText('Your backup was imported.').waitFor()
+  assert.equal(tables.habits.size, 4)
+  assert.equal(tables.daily_affirmations.get('2026-11-19').body, 'Write a little.')
+  await page.getByRole('button', { name: /Evening journal.*Every day/ }).click()
+  await page.getByRole('button', { name: 'Streak freeze' }).click()
+  await page.getByRole('button', { name: /Wednesday, November 18, 2026, No check-in/ }).click()
+  await page.getByRole('button', { name: /Wednesday, November 18, 2026, Frozen/ }).waitFor()
+  assert.match(await page.locator('.history-summary').innerText(), /2\s+Current streak/)
+  await close()
+  await synced()
+  console.log('PASS one-click legacy import and streak freeze')
+
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.getByRole('button', { name: 'Switch to dark mode' }).click()
+  await navigate('Today')
+  assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark')
+  await screenshot('today-mobile-dark')
+  await navigate('Calendar')
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('heading', { name: 'Habit reminders' }).waitFor()
+  await context.grantPermissions(['notifications'])
+  await page.getByLabel('Reminder time').fill('00:00')
+  await page.getByRole('button', { name: 'Enable reminders' }).click()
+  await page.getByText('Reminder saved.').waitFor()
+  await page.waitForFunction(async () => {
+    const registration = await navigator.serviceWorker.getRegistration()
+    return registration && (await registration.getNotifications()).some((notice) => notice.tag === 'habittism-daily-reminder')
+  })
+  await page.getByRole('button', { name: 'Turn off' }).click()
+  await page.getByRole('button', { name: 'Import browser backup' }).click()
+  await page.getByLabel('Habittism backup file').setInputFiles({
+    name: 'old-browser.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ state: { affirmations: { '2026-11-15': 'I can begin again.' } }, version: 7 })),
+  })
+  await page.getByRole('button', { name: 'Import data', exact: true }).click()
+  await page.getByRole('dialog').waitFor({ state: 'hidden' })
+  assert.equal(tables.daily_affirmations.get('2026-11-15').body, 'I can begin again.')
+  assert.equal(await page.getByRole('navigation').evaluate((nav) => nav.scrollWidth <= nav.clientWidth), true)
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+  await page.getByRole('heading', { name: 'Welcome back.' }).waitFor()
+  assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark')
+  await page.getByRole('button', { name: 'Continue with GitHub' }).click()
+  await page.getByRole('heading', { name: 'Good morning, Avery.' }).waitFor()
+  assert.deepEqual(errors, [])
+  console.log('PASS mobile layout, theme persistence, reminders, file import, sign-out, and GitHub OAuth callback')
+} finally {
+  await browser?.close()
+  await server.close()
+}
