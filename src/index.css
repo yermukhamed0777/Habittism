@@ -204,6 +204,22 @@ progress::-moz-progress-bar { background: var(--action); }
 .selected-day small { display: block; }
 .history-hint { margin-top: .65rem; }
 
+.insight-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(.35rem, 2vw, 1rem); }
+.insight-summary .panel { display: grid; gap: .55rem; align-content: start; padding: clamp(.55rem, 2.6vw, 1.3rem); }
+.insight-summary span { color: var(--muted); font-size: clamp(.7rem, 2vw, .87rem); }
+.insight-summary strong { font: 400 clamp(1.8rem, 5vw, 3.25rem)/1 var(--serif); }
+.trend { display: grid; gap: clamp(.25rem, 1.4vw, .85rem); padding: 1rem 0 0; list-style: none; }
+.trend li { display: grid; gap: .45rem; align-items: center; text-align: center; font-size: clamp(.64rem, 1.7vw, .83rem); min-width: 0; }
+.trend small { color: var(--muted); font-size: inherit; }
+.trend-track { height: clamp(5.5rem, 18vw, 10rem); display: grid; align-items: end; overflow: hidden; border-radius: .4rem; background: var(--field); }
+.trend-track div { width: 100%; background: var(--action); border-radius: .37rem .37rem 0 0; transition: height .2s; }
+.table-scroll { overflow-x: auto; }
+.insight-streaks table { border-collapse: collapse; width: 100%; text-align: left; }
+.insight-streaks :is(th, td) { padding: .55rem .4rem; border-top: 1px solid var(--line); }
+.insight-streaks thead th { color: var(--muted); font-weight: 630; font-size: .76rem; }
+.insight-streaks td { font-variant-numeric: tabular-nums; }
+.insight-streaks .habit-name { min-width: 7rem; }
+
 @media (max-width: 920px) {
   .header-inner { display: grid; grid-template-columns: 1fr auto; gap: .5rem; padding-block: .6rem; }
   .header-actions { grid-column: 2; grid-row: 1; }

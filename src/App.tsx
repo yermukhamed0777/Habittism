@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
-import { CalendarDays, House, Leaf, ListChecks, Plus, Settings, Sun } from 'lucide-react'
+import { CalendarDays, ChartNoAxesColumnIncreasing, House, Leaf, ListChecks, Plus, Settings, Sun } from 'lucide-react'
 import { AuthShell } from './components/AuthGate'
 import { JournalDialog } from './components/JournalDialog'
 import { LegacyImport } from './components/LegacyImport'
 import { TrackerCalendar } from './components/TrackerCalendar'
 import { TrackerHabitForm } from './components/TrackerHabitForm'
 import { TrackerDay, TrackerHistory } from './components/TrackerHistory'
+import { TrackerInsights } from './components/TrackerInsights'
 import { DailyGreeting, HabitLibrary, TodayView } from './components/TrackerViews'
 import { useToday } from './hooks/useToday'
 import { toKey } from './lib/dates'
@@ -20,6 +21,7 @@ const navigation = [
   { id: 'today', label: 'Today', icon: Sun },
   { id: 'habits', label: 'Habits', icon: ListChecks },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { id: 'insights', label: 'Insights', icon: ChartNoAxesColumnIncreasing },
 ] as const
 
 type View = (typeof navigation)[number]['id']
@@ -152,6 +154,7 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
         {view === 'today' && <TodayView {...habitView} />}
         {view === 'habits' && <HabitLibrary {...habitView} />}
         {view === 'calendar' && <TrackerCalendar journal={tracker.journal} today={today} onSelect={(day) => setDialog({ kind: 'day', day })} />}
+        {view === 'insights' && <TrackerInsights journal={tracker.journal} today={today} onOpenHabit={openHabit} />}
       </main>
       {dialog?.kind === 'create' && <TrackerHabitForm onClose={close} onCreate={(habit) => tracker.createHabit(habit, toKey(today))} />}
       {dialog?.kind === 'habit' && selectedHabit && <TrackerHistory key={selectedHabit.id} tracker={tracker} today={today}
