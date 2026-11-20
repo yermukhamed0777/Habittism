@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
+import { saveGuestJournal } from '../lib/guestJournal'
 import type { HabitRepository } from '../lib/habitRepository'
 import type { HabitInput, HabitLog, Journal, TrackedHabit } from '../lib/tracking'
 
 type Write = { send: () => Promise<unknown>; readyAt: number }
 
-export function useCloudJournal(initial: Journal, repository: HabitRepository) {
+export function useCloudJournal(initial: Journal, repository?: HabitRepository) {
   const [journal, setJournal] = useState(initial)
   const [sync, setSync] = useState({ pending: 0, error: '' })
   const [queue] = useState(() => {
@@ -47,6 +48,12 @@ export function useCloudJournal(initial: Journal, repository: HabitRepository) {
     }
   })
 
+  useLayoutEffect(() => {
+    if (!repository) {
+      try { saveGuestJournal(journal) } catch { /* The guest journal is still available for export. */ }
+    }
+  }, [journal, repository])
+
   useEffect(() => {
     if (!sync.pending) return
     const preventLoss = (event: BeforeUnloadEvent) => event.preventDefault()
@@ -59,9 +66,14 @@ export function useCloudJournal(initial: Journal, repository: HabitRepository) {
   }, [queue, sync.pending])
 
   function createHabit(input: HabitInput, createdOn: string) {
-    const habit: TrackedHabit = { ...input, id: crypto.randomUUID(), createdOn, archived: false }
-    setJournal((previous) => ({ ...previous, habits: [...previous.habits, habit] }))
-    queue.add(`create:${habit.id}`, () => repository.createHabit(habit))
+    createHabits([input], createdOn)
+  }
+
+  function createHabits(inputs: HabitInput[], createdOn: string) {
+    if (!inputs.length) return
+    const habits: TrackedHabit[] = inputs.map((input) => ({ ...input, id: crypto.randomUUID(), createdOn, archived: false }))
+    setJournal((previous) => ({ ...previous, habits: [...previous.habits, ...habits] }))
+    if (repository) queue.add(`create:${habits[0].id}`, () => repository.createHabits(habits))
   }
 
   function deleteHabit(id: string) {
@@ -70,7 +82,7 @@ export function useCloudJournal(initial: Journal, repository: HabitRepository) {
       delete logs[id]
       return { ...previous, habits: previous.habits.filter((habit) => habit.id !== id), logs }
     })
-    queue.add(`delete:${id}`, () => repository.deleteHabit(id))
+    if (repository) queue.add(`delete:${id}`, () => repository.deleteHabit(id))
   }
 
   function writeLog(id: string, day: string, log: HabitLog | null) {
@@ -80,15 +92,15 @@ export function useCloudJournal(initial: Journal, repository: HabitRepository) {
       else delete habitLogs[day]
       return { ...previous, logs: { ...previous.logs, [id]: habitLogs } }
     })
-    queue.add(`log:${id}:${day}`, () => repository.writeLog(id, day, log))
+    if (repository) queue.add(`log:${id}:${day}`, () => repository.writeLog(id, day, log))
   }
 
   function writeAffirmation(day: string, body: string) {
     setJournal((previous) => ({ ...previous, affirmations: { ...previous.affirmations, [day]: body } }))
-    queue.add(`affirmation:${day}`, () => repository.writeAffirmation(day, body.trim()), 650)
+    if (repository) queue.add(`affirmation:${day}`, () => repository.writeAffirmation(day, body.trim()), 650)
   }
 
-  return { journal, setJournal, sync, retry: queue.flush, createHabit, deleteHabit, writeLog, writeAffirmation }
+  return { journal, setJournal, sync, retry: queue.flush, createHabit, createHabits, deleteHabit, writeLog, writeAffirmation }
 }
 
 export type CloudJournal = ReturnType<typeof useCloudJournal>

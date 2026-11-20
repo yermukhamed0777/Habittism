@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { addDays, addMonths, endOfMonth, format, startOfMonth } from 'date-fns'
 import { ChevronLeft, ChevronRight, Snowflake, Trash2 } from 'lucide-react'
 import { fromKey, startOfWeekMonday, toKey } from '../lib/dates'
-import { formatDay, habitStats, isComplete, isScheduled, scheduleLabel, weekdays, type HabitLog, type TrackedHabit } from '../lib/tracking'
+import { formatDay, habitStats, isComplete, isScheduled, scheduleLabel, updateProgress, weekdays, type HabitLog, type TrackedHabit } from '../lib/tracking'
 import type { CloudJournal } from '../store/useCloudJournal'
-import { EntryControl, EntryIcon } from './HabitEntry'
+import { EntryControl, EntryIcon, EntryReflection } from './HabitEntry'
 import { JournalDialog } from './JournalDialog'
 
 export function TrackerHistory({ tracker, habit, today, initialDay, onClose }: {
@@ -37,7 +37,8 @@ export function TrackerHistory({ tracker, habit, today, initialDay, onClose }: {
   }
 
   function toggleFreeze(day: string) {
-    update(day, logs[day]?.frozen ? null : { value: 0, frozen: true })
+    const log = logs[day]
+    update(day, log?.frozen ? updateProgress(log, 0) : { ...log, value: 0, frozen: true })
   }
 
   function choose(date: Date) {
@@ -48,7 +49,7 @@ export function TrackerHistory({ tracker, habit, today, initialDay, onClose }: {
       if (canFreeze(date)) toggleFreeze(key)
       return
     }
-    update(key, isComplete(habit, logs[key]) ? null : { value: 1, frozen: false })
+    update(key, updateProgress(logs[key], isComplete(habit, logs[key]) ? 0 : 1))
   }
 
   function shiftMonth(direction: number) {
@@ -73,6 +74,7 @@ export function TrackerHistory({ tracker, habit, today, initialDay, onClose }: {
         <button type="button" className="pill" aria-pressed={!freezeMode} onClick={() => setFreezeMode(false)}>Check-ins</button>
         <button type="button" className="pill" aria-pressed={freezeMode} onClick={() => setFreezeMode(true)}><Snowflake size={15} /> Streak freeze</button>
       </div>}
+      <EntryReflection key={selected} habit={habit} log={selectedLog} onChange={(log) => update(selected, log)} />
       <div className="month-grid">
         {weekdays.map(({ label }) => <span className="weekday" key={label}>{label}</span>)}
         {days.map((date, index) => {
@@ -141,6 +143,7 @@ export function TrackerDay({ tracker, day, today, onClose, onOpenHabit, entries 
                 <span><strong>{habit.name}</strong><small>{log?.frozen ? 'Frozen' : complete ? 'Complete' : pending ? 'Unfinished' : habit.schedule === 'weekly' && day >= habit.createdOn ? `Flexible · week of ${format(week, 'MMM d')}` : 'Optional check-in'}</small></span>
               </button>
               {day <= toKey(today) && <EntryControl habit={habit} log={log} onChange={(next) => tracker.writeLog(habit.id, day, next)} />}
+              <EntryReflection habit={habit} log={log} onChange={(next) => tracker.writeLog(habit.id, day, next)} />
             </li>
           ))}
         </ul>

@@ -1,10 +1,10 @@
 import { useEffect, useId, useState } from 'react'
-import { ArrowRight, CalendarDays, Feather, Leaf, Plus, Search } from 'lucide-react'
+import { ArrowRight, CalendarDays, Feather, Leaf, Plus, Search, Snowflake } from 'lucide-react'
 import { AFFIRMATION_PROMPTS, greetingFor, pickPrompt } from '../lib/affirmations'
 import { fromKey, startOfWeekMonday, toKey } from '../lib/dates'
-import { categoryLabel, formatDay, isComplete, scheduleLabel, weekProgress, type TrackedHabit } from '../lib/tracking'
+import { categoryLabel, focusQueue, formatDay, isComplete, scheduleLabel, weekProgress, type TrackedHabit } from '../lib/tracking'
 import type { CloudJournal } from '../store/useCloudJournal'
-import { EntryControl, EntryIcon } from './HabitEntry'
+import { EntryControl, EntryIcon, EntryReflection } from './HabitEntry'
 
 const dateLabel = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
@@ -57,10 +57,11 @@ type HabitViewProps = {
   tracker: CloudJournal
   today: Date
   onAdd: () => void
+  onTemplates: () => void
   onOpenHabit: (id: string) => void
 }
 
-export function DailyGreeting({ tracker, today, name, due, onToday, onAdd, onOpenHabit }: HabitViewProps & {
+export function DailyGreeting({ tracker, today, name, due, onToday, onAdd, onOpenHabit, onTemplates }: HabitViewProps & {
   name: string
   due: TrackedHabit[]
   onToday: () => void
@@ -86,42 +87,49 @@ export function DailyGreeting({ tracker, today, name, due, onToday, onAdd, onOpe
       </section>
       <div className="dashboard-columns">
         <AffirmationEditor tracker={tracker} today={today} showHistory />
-        <TodayList tracker={tracker} today={today} due={due} onAdd={onAdd} onOpenHabit={onOpenHabit} />
+        <TodayList tracker={tracker} today={today} due={due} onAdd={onAdd} onOpenHabit={onOpenHabit} onTemplates={onTemplates} />
       </div>
     </>
   )
 }
 
-export function TodayView({ tracker, today, due, onAdd, onOpenHabit }: HabitViewProps & { due: TrackedHabit[] }) {
+export function TodayView({ tracker, today, due, onAdd, onOpenHabit, onTemplates }: HabitViewProps & { due: TrackedHabit[] }) {
   return (
     <>
       <div className="page-heading"><h1>Today</h1><p>{formatDay(today)}</p></div>
       <div className="dashboard-columns today-columns">
-        <TodayList tracker={tracker} today={today} due={due} onAdd={onAdd} onOpenHabit={onOpenHabit} />
+        <TodayList tracker={tracker} today={today} due={due} onAdd={onAdd} onOpenHabit={onOpenHabit} onTemplates={onTemplates} focus />
         <AffirmationEditor tracker={tracker} today={today} />
       </div>
     </>
   )
 }
 
-function TodayList({ tracker, today, due, onAdd, onOpenHabit }: HabitViewProps & { due: TrackedHabit[] }) {
+function TodayList({ tracker, today, due, onAdd, onOpenHabit, onTemplates, focus }: HabitViewProps & { due: TrackedHabit[]; focus?: boolean }) {
   const key = toKey(today)
   const done = due.filter((habit) => isComplete(habit, tracker.journal.logs[habit.id]?.[key])).length
+  const frozen = due.filter((habit) => tracker.journal.logs[habit.id]?.[key]?.frozen).length
+  const ordered = focus ? focusQueue(due, tracker.journal, today) : due
 
   return (
     <section className="panel today-list">
       <div className="panel-heading">
         <span className="section-icon"><Leaf size={19} /></span>
-        <div><h2>Today’s habits</h2>{!!due.length && <p>{done} of {due.length} complete</p>}</div>
+        <div><h2>{focus ? 'Today’s Focus' : 'Today’s habits'}</h2>
+          {!!due.length && <p aria-live="polite">{done} of {due.length} complete{frozen > 0 && ` · ${frozen} frozen`}</p>}
+        </div>
       </div>
       {due.length ? (
         <ul className="habit-list">
-          {due.map((habit) => <HabitRow key={habit.id} habit={habit} tracker={tracker} today={today} onOpenHabit={onOpenHabit} showControl />)}
+          {ordered.map((habit) => <HabitRow key={habit.id} habit={habit} tracker={tracker} today={today} onOpenHabit={onOpenHabit} showControl />)}
         </ul>
       ) : (
         <div className="empty">
           <p>{tracker.journal.habits.length ? 'You have no habits due today.' : 'Create your first habit to start tracking.'}</p>
-          <button className="secondary" type="button" onClick={onAdd}><Plus size={16} /> New habit</button>
+          <div className="chips">
+            <button className="secondary" type="button" onClick={onAdd}><Plus size={16} /> New habit</button>
+            {!tracker.journal.habits.length && <button className="secondary" type="button" onClick={onTemplates}>Quick-Start Templates</button>}
+          </div>
         </div>
       )}
     </section>
@@ -134,6 +142,8 @@ function HabitRow({ habit, tracker, today, onOpenHabit, showControl }: Pick<Habi
 }) {
   const key = toKey(today)
   const logs = tracker.journal.logs[habit.id] ?? {}
+  const log = logs[key]
+  const write = (next: Parameters<CloudJournal['writeLog']>[2]) => tracker.writeLog(habit.id, key, next)
   const weekly = habit.schedule === 'weekly' ? weekProgress(habit, logs, startOfWeekMonday(today), key) : null
   return (
     <li className="habit-row">
@@ -142,13 +152,15 @@ function HabitRow({ habit, tracker, today, onOpenHabit, showControl }: Pick<Habi
         <span><strong>{habit.name}</strong><small>{habit.archived ? 'Archived · ' : ''}{categoryLabel(habit)} · {scheduleLabel(habit)}</small></span>
       </button>
       {weekly && <span className="weekly-caption">{weekly.done}/{weekly.target} this week</span>}
-      {showControl && <EntryControl habit={habit} log={logs[key]} onChange={(log) => tracker.writeLog(habit.id, key, log)} />}
+      {log?.frozen && <span className="freeze-status"><Snowflake size={14} /> Frozen</span>}
+      {showControl && <EntryControl habit={habit} log={log} onChange={write} />}
       {!showControl && <button className="icon-button history-shortcut" type="button" aria-label={`Open ${habit.name} history`} onClick={() => onOpenHabit(habit.id)}><ArrowRight size={18} /></button>}
+      {showControl && <EntryReflection key={key} habit={habit} log={log} onChange={write} />}
     </li>
   )
 }
 
-export function HabitLibrary({ tracker, today, onAdd, onOpenHabit, due }: HabitViewProps & { due: TrackedHabit[] }) {
+export function HabitLibrary({ tracker, today, onAdd, onOpenHabit, due, onTemplates }: HabitViewProps & { due: TrackedHabit[] }) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const labels = Array.from(new Set(tracker.journal.habits.map(categoryLabel))).sort()
@@ -174,7 +186,10 @@ export function HabitLibrary({ tracker, today, onAdd, onOpenHabit, due }: HabitV
             {matches.map((habit) => <HabitRow key={habit.id} habit={habit} tracker={tracker} today={today} onOpenHabit={onOpenHabit} showControl={dueIds.has(habit.id)} />)}
           </ul>
         ) : <div className="empty"><p>{tracker.journal.habits.length ? 'No habits match your filters.' : 'Your habit list is empty.'}</p>
-          {!tracker.journal.habits.length && <button className="secondary" type="button" onClick={onAdd}><Plus size={16} /> New habit</button>}
+          {!tracker.journal.habits.length && <div className="chips">
+            <button className="secondary" type="button" onClick={onAdd}><Plus size={16} /> New habit</button>
+            <button className="secondary" type="button" onClick={onTemplates}>Quick-Start Templates</button>
+          </div>}
         </div>}
       </section>
     </>

@@ -50,7 +50,12 @@ export interface TrackedHabit extends HabitInput {
 export interface HabitLog {
   value: number
   frozen: boolean
+  note?: string | null
+  mood?: Mood | null
 }
+
+export const moods = { energized: 'Energized', steady: 'Steady', low: 'Low energy' }
+export type Mood = keyof typeof moods
 
 export type HabitLogs = Record<string, HabitLog>
 
@@ -72,6 +77,28 @@ export function scheduleLabel(habit: HabitInput) {
 
 export function isComplete(habit: HabitInput, log?: HabitLog) {
   return !!log && !log.frozen && log.value >= habit.goal
+}
+
+export function updateProgress(log: HabitLog | undefined, value: number): HabitLog | null {
+  return value || log?.note || log?.mood ? { ...log, value, frozen: false } : null
+}
+
+export function focusQueue(habits: TrackedHabit[], journal: Journal, today: Date) {
+  const key = toKey(today)
+  const week = startOfWeekMonday(today)
+  const daysRemaining = 7 - differenceInCalendarDays(today, week)
+  return habits.map((habit) => {
+    const logs = journal.logs[habit.id] ?? {}
+    const log = logs[key]
+    if (log?.frozen) return { habit, score: 4 }
+    if (isComplete(habit, log)) return { habit, score: 3 }
+    if (log?.value) return { habit, score: 0 }
+    if (habit.schedule === 'weekly') {
+      const { target, done } = weekProgress(habit, logs, week, key)
+      if (target - done >= daysRemaining) return { habit, score: 1 }
+    }
+    return { habit, score: 2 }
+  }).sort((first, second) => first.score - second.score).map(({ habit }) => habit)
 }
 
 export function isScheduled(habit: TrackedHabit, date: Date, key = toKey(date)) {

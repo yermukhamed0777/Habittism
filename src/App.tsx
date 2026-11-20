@@ -5,6 +5,7 @@ import { AuthShell } from './components/AuthGate'
 import { JournalDialog } from './components/JournalDialog'
 import { LegacyImport } from './components/LegacyImport'
 import { ReminderSettings } from './components/ReminderSettings'
+import { StarterPacks } from './components/StarterPacks'
 import { ThemeToggle } from './components/ThemeToggle'
 import { TrackerCalendar } from './components/TrackerCalendar'
 import { TrackerHabitForm } from './components/TrackerHabitForm'
@@ -15,6 +16,8 @@ import { useToday } from './hooks/useToday'
 import { useReminder } from './hooks/useReminder'
 import { toKey } from './lib/dates'
 import { habitRepository, type HabitRepository } from './lib/habitRepository'
+import { claimGuestJournal, loadGuestJournal } from './lib/guestJournal'
+import { downloadJournal } from './lib/journalExport'
 import { browserBackupImported, markBrowserBackupImported, readBrowserBackup, type LegacyJournal } from './lib/legacyJournal'
 import { dayEntries, isComplete, isOnToday, type Journal } from './lib/tracking'
 import { useCloudJournal } from './store/useCloudJournal'
@@ -28,7 +31,7 @@ const navigation = [
 ] as const
 
 type View = (typeof navigation)[number]['id']
-type Dialog = { kind: 'create' | 'settings' | 'import' | 'importing' } | { kind: 'day'; day: string } | { kind: 'habit'; id: string; day?: string }
+type Dialog = { kind: 'create' | 'settings' | 'import' | 'importing' | 'templates' } | { kind: 'day'; day: string } | { kind: 'habit'; id: string; day?: string }
 type Account = { client: SupabaseClient; session: Session }
 
 function displayName(session: Session) {
@@ -43,22 +46,33 @@ export default function App({ client, session }: Account) {
   const [attempt, setAttempt] = useState(0)
   const [initial, setInitial] = useState<Journal>()
   const [error, setError] = useState('')
+  const [merged, setMerged] = useState(false)
 
   useEffect(() => {
     let active = true
-    void repository.load().then(
+    async function openJournal() {
+      const guest = claimGuestJournal(session.user.id)
+      if (guest) await repository.mergeGuest(guest.journal)
+      const journal = await repository.load()
+      if (active && guest) {
+        guest.finish()
+        setMerged(true)
+      }
+      return journal
+    }
+    void openJournal().then(
       (journal) => { if (active) setInitial(journal) },
       (reason) => { if (active) setError(reason instanceof Error ? reason.message : 'Could not load the journal.') },
     )
     return () => { active = false }
-  }, [repository, attempt])
+  }, [repository, attempt, session.user.id])
 
-  if (initial) return <Dashboard client={client} session={session} initial={initial} repository={repository} />
+  if (initial) return <Dashboard account={{ client, session, repository }} initial={initial} merged={merged} />
   return <AuthShell>
     {error ? <>
       <h1>Couldn’t load your journal.</h1>
       <p role="alert">{error}</p>
-      <p>For a new Supabase project, apply <code>supabase/schema.sql</code> in the SQL Editor.</p>
+      <p>Check that the Supabase schema and its migrations have been applied.</p>
       <div className="dialog-actions">
         <button type="button" className="primary" onClick={() => { setError(''); setAttempt((previous) => previous + 1) }}>Try again</button>
         <button type="button" className="secondary" onClick={() => void client.auth.signOut({ scope: 'local' })}>Sign out</button>
@@ -67,16 +81,29 @@ export default function App({ client, session }: Account) {
   </AuthShell>
 }
 
-function Dashboard({ client, session, initial, repository }: Account & { initial: Journal; repository: HabitRepository }) {
+export function GuestApp({ openAccount }: { openAccount: () => void }) {
+  const [initial] = useState(loadGuestJournal)
+  return <Dashboard initial={initial} openAccount={openAccount} />
+}
+
+function Dashboard({ account, initial, openAccount, merged }: {
+  account?: Account & { repository: HabitRepository }
+  initial: Journal
+  openAccount?: () => void
+  merged?: boolean
+}) {
+  const { client, session, repository } = account ?? {}
+  const userId = session?.user.id
   const tracker = useCloudJournal(initial, repository)
   const [view, setView] = useState<View>('greeting')
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [accountError, setAccountError] = useState('')
   const [signingOut, setSigningOut] = useState(false)
   const today = useToday()
-  const [browserBackup, setBrowserBackup] = useState(() => browserBackupImported(session.user.id) ? null : readBrowserBackup(toKey(today)))
+  const [browserBackup, setBrowserBackup] = useState(() => userId && !browserBackupImported(userId) ? readBrowserBackup(toKey(today)) : null)
   const [showImport, setShowImport] = useState(true)
   const [imported, setImported] = useState(false)
+  const [showMerged, setShowMerged] = useState(merged)
   const [importError, setImportError] = useState('')
   const due = tracker.journal.habits.filter((habit) => isOnToday(habit, tracker.journal.logs[habit.id] ?? {}, today))
   const todayKey = toKey(today)
@@ -84,19 +111,20 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
     const log = tracker.journal.logs[habit.id]?.[todayKey]
     return !log?.frozen && !isComplete(habit, log)
   }).length
-  const reminder = useReminder(session.user.id, outstanding)
+  const reminder = useReminder(userId ?? 'guest', outstanding)
   const selectedHabit = dialog?.kind === 'habit' && tracker.journal.habits.find((habit) => habit.id === dialog.id)
   const close = () => setDialog(null)
   const openHabit = (id: string, day?: string) => setDialog({ kind: 'habit', id, day })
   const onAdd = () => setDialog({ kind: 'create' })
-  const habitView = { tracker, today, due, onAdd, onOpenHabit: openHabit }
+  const habitView = { tracker, today, due, onAdd, onOpenHabit: openHabit, onTemplates: () => setDialog({ kind: 'templates' }) }
 
   async function importBackup(backup: LegacyJournal, fromBrowser: boolean) {
+    if (!repository || !userId) return
     if (tracker.sync.pending) throw new Error('Wait for your changes to finish syncing.')
     await repository.importLegacy(backup)
     tracker.setJournal(await repository.load())
     if (fromBrowser) {
-      markBrowserBackupImported(session.user.id)
+      markBrowserBackupImported(userId)
       setBrowserBackup(null)
     }
     setImported(true)
@@ -116,7 +144,7 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
   }
 
   async function signOut() {
-    if (tracker.sync.pending || signingOut) return
+    if (!client || tracker.sync.pending || signingOut) return
     setSigningOut(true)
     setAccountError('')
     try {
@@ -149,9 +177,13 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
         {tracker.sync.error ? (
           <div className="sync-banner" role="alert"><span>Changes are waiting to sync. {tracker.sync.error}</span>
             <button type="button" className="secondary" onClick={() => void tracker.retry()}>Retry sync</button></div>
-        ) : <div className="sync-status" role="status">{tracker.sync.pending ? 'Saving changes…' : 'All changes synced'}</div>}
+        ) : <div className="sync-status" role="status">{tracker.sync.pending ? 'Saving changes…' : account ? 'All changes synced' : 'Guest journal'}</div>}
+        {!account && <section className="import-banner">
+          <div><strong>Try Habittism as a guest</strong><p>Sign in or create an account to sync this journal across devices.</p></div>
+          <button className="primary" type="button" onClick={openAccount}>Sign in or sign up</button>
+        </section>}
         {browserBackup && showImport && <section className="import-banner">
-          <div><strong>Import your saved habits and affirmations</strong><p>Move this browser’s previous Habittism data into {session.user.email ?? 'your account'}.</p>
+          <div><strong>Import your saved habits and affirmations</strong><p>Move this browser’s previous Habittism data into {session?.user.email ?? 'your account'}.</p>
             {importError && <p className="error" role="alert">{importError}</p>}
           </div>
           <div className="chips">
@@ -160,27 +192,35 @@ function Dashboard({ client, session, initial, repository }: Account & { initial
           </div>
         </section>}
         {imported && <div className="import-banner" role="status">Your backup was imported.<button className="text-button" type="button" onClick={() => setImported(false)}>Dismiss</button></div>}
-        {view === 'greeting' && <DailyGreeting {...habitView} name={displayName(session)} onToday={() => setView('today')} />}
+        {showMerged && <div className="import-banner" role="status">Your guest journal was merged.<button className="text-button" type="button" onClick={() => setShowMerged(false)}>Dismiss</button></div>}
+        {view === 'greeting' && <DailyGreeting {...habitView} name={session ? displayName(session) : ''} onToday={() => setView('today')} />}
         {view === 'today' && <TodayView {...habitView} />}
         {view === 'habits' && <HabitLibrary {...habitView} />}
         {view === 'calendar' && <TrackerCalendar journal={tracker.journal} today={today} onSelect={(day) => setDialog({ kind: 'day', day })} />}
-        {view === 'insights' && <TrackerInsights journal={tracker.journal} today={today} onOpenHabit={openHabit} />}
+        {view === 'insights' && <TrackerInsights journal={tracker.journal} today={today} onOpenHabit={openHabit} onSelectDay={(day) => setDialog({ kind: 'day', day })} />}
       </main>
       {dialog?.kind === 'create' && <TrackerHabitForm onClose={close} onCreate={(habit) => tracker.createHabit(habit, toKey(today))} />}
+      {dialog?.kind === 'templates' && <StarterPacks onClose={close} onAdd={(habits) => tracker.createHabits(habits, todayKey)} />}
       {dialog?.kind === 'habit' && selectedHabit && <TrackerHistory key={selectedHabit.id} tracker={tracker} today={today}
         habit={selectedHabit} initialDay={dialog.day} onClose={close} />}
       {dialog?.kind === 'day' && <TrackerDay tracker={tracker} day={dialog.day} today={today} onClose={close}
         onOpenHabit={openHabit} entries={(date) => dayEntries(tracker.journal, date, today)} />}
-      {dialog?.kind === 'import' && <LegacyImport browserBackup={browserBackup} today={toKey(today)} email={session.user.email} onImport={importBackup} onClose={close} />}
+      {dialog?.kind === 'import' && <LegacyImport browserBackup={browserBackup} today={toKey(today)} email={session?.user.email} onImport={importBackup} onClose={close} />}
       {dialog?.kind === 'importing' && <JournalDialog title="Importing previous data" onClose={close} busy><p role="status">Moving your habits, check-ins, and affirmations to this account…</p></JournalDialog>}
-      {dialog?.kind === 'settings' && <JournalDialog title="Settings" subtitle={session.user.email} onClose={close}>
+      {dialog?.kind === 'settings' && <JournalDialog title="Settings" subtitle={session?.user.email} onClose={close}>
         {accountError && <p className="error" role="alert">{accountError}</p>}
         <ReminderSettings reminder={reminder} />
         <div className="settings-section"><h3>Data</h3>
-          <button type="button" className="secondary" disabled={!!tracker.sync.pending} onClick={() => setDialog({ kind: 'import' })}>Import browser backup</button>
+          <div className="chips">
+            <button type="button" className="secondary" onClick={() => downloadJournal(tracker.journal, 'json', todayKey)}>Export JSON</button>
+            <button type="button" className="secondary" onClick={() => downloadJournal(tracker.journal, 'csv', todayKey)}>Export CSV</button>
+            {account && <button type="button" className="secondary" disabled={!!tracker.sync.pending} onClick={() => setDialog({ kind: 'import' })}>Import browser backup</button>}
+          </div>
         </div>
         {!!tracker.sync.pending && <p>Finish syncing changes before signing out.</p>}
-        <div className="dialog-actions"><button type="button" className="secondary" disabled={!!tracker.sync.pending || signingOut} onClick={() => void signOut()}>Sign out</button></div>
+        <div className="dialog-actions">{account
+          ? <button type="button" className="secondary" disabled={!!tracker.sync.pending || signingOut} onClick={() => void signOut()}>Sign out</button>
+          : <button type="button" className="primary" onClick={openAccount}>Sign in or sign up</button>}</div>
       </JournalDialog>}
     </div>
   )

@@ -39,6 +39,10 @@ async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<Resul
   }
 }
 
+function logFields(log: HabitLog) {
+  return { ...log, note: log.note?.trim() || null, mood: log.mood ?? null }
+}
+
 export function habitRepository(client: SupabaseClient, userId: string) {
   return {
     async load(): Promise<Journal> {
@@ -46,7 +50,7 @@ export function habitRepository(client: SupabaseClient, userId: string) {
         checked(client.from('profiles').upsert({ id: userId }, { onConflict: 'id', ignoreDuplicates: true })),
         fetchAll<HabitRow>((from, to) => client.from('habits').select().eq('user_id', userId)
           .order('created_at').order('id').range(from, to).returns<HabitRow[]>()),
-        fetchAll<LogRow>((from, to) => client.from('habit_logs').select('habit_id,day,value,frozen')
+        fetchAll<LogRow>((from, to) => client.from('habit_logs').select('habit_id,day,value,frozen,note,mood')
           .eq('user_id', userId).order('habit_id').order('day').range(from, to).returns<LogRow[]>()),
         fetchAll<AffirmationRow>((from, to) => client.from('daily_affirmations').select('day,body')
           .eq('user_id', userId).order('day').range(from, to).returns<AffirmationRow[]>()),
@@ -54,7 +58,7 @@ export function habitRepository(client: SupabaseClient, userId: string) {
       const logs: Journal['logs'] = {}
       for (const row of rows) {
         logs[row.habit_id] ??= {}
-        logs[row.habit_id][row.day] = { value: row.value, frozen: row.frozen }
+        logs[row.habit_id][row.day] = { value: row.value, frozen: row.frozen, note: row.note, mood: row.mood }
       }
       return {
         habits: habits.map((habit) => ({
@@ -78,13 +82,13 @@ export function habitRepository(client: SupabaseClient, userId: string) {
       }
     },
 
-    createHabit(habit: TrackedHabit) {
-      return checked(client.from('habits').upsert({
+    createHabits(habits: TrackedHabit[]) {
+      return checked(client.from('habits').upsert(habits.map((habit) => ({
         ...habitFields(habit),
         id: habit.id,
         user_id: userId,
         created_on: habit.createdOn,
-      }, { onConflict: 'id', ignoreDuplicates: true }))
+      })), { onConflict: 'id', ignoreDuplicates: true }))
     },
 
     deleteHabit(id: string) {
@@ -94,7 +98,7 @@ export function habitRepository(client: SupabaseClient, userId: string) {
     writeLog(id: string, day: string, log: HabitLog | null) {
       const table = client.from('habit_logs')
       return log
-        ? checked(table.upsert({ user_id: userId, habit_id: id, day, ...log }))
+        ? checked(table.upsert({ user_id: userId, habit_id: id, day, ...logFields(log) }))
         : checked(table.delete().eq('user_id', userId).eq('habit_id', id).eq('day', day))
     },
 
@@ -107,6 +111,18 @@ export function habitRepository(client: SupabaseClient, userId: string) {
 
     importLegacy(payload: LegacyJournal) {
       return checked(client.rpc('import_legacy_journal', { payload }))
+    },
+
+    mergeGuest(journal: Journal) {
+      return checked(client.rpc('merge_guest_journal', { payload: {
+        habits: journal.habits.map((habit) => ({
+          ...habitFields(habit), id: habit.id, created_on: habit.createdOn, archived: habit.archived,
+        })),
+        logs: Object.entries(journal.logs).flatMap(([id, logs]) =>
+          Object.entries(logs).map(([day, log]) => ({ habit_id: id, day, ...logFields(log) }))),
+        affirmations: Object.entries(journal.affirmations)
+          .filter(([, body]) => body.trim()).map(([day, body]) => ({ day, body: body.trim() })),
+      } }))
     },
   }
 }

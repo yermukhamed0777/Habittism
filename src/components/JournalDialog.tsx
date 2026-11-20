@@ -1,12 +1,13 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
-export function JournalDialog({ title, subtitle, children, onClose, busy = false }: {
+export function JournalDialog({ title, subtitle, children, onClose, busy = false, drawer = false }: {
   title: string
   subtitle?: string
   children: ReactNode
   onClose: () => void
   busy?: boolean
+  drawer?: boolean
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -19,7 +20,7 @@ export function JournalDialog({ title, subtitle, children, onClose, busy = false
   }, [])
 
   return (
-    <dialog ref={dialog} className="journal-dialog" aria-labelledby={titleId} aria-describedby={subtitle ? descriptionId : undefined}
+    <dialog ref={dialog} className={drawer ? 'journal-dialog template-drawer' : 'journal-dialog'} aria-labelledby={titleId} aria-describedby={subtitle ? descriptionId : undefined}
       onCancel={(event) => { event.preventDefault(); if (!busy) onClose() }}>
       <div className="dialog-heading">
         <div>

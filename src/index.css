@@ -180,6 +180,7 @@ progress::-moz-progress-bar { background: var(--action); }
 .heat-grid { display: grid; min-width: 49rem; grid-template-columns: 1rem repeat(53, minmax(0, 1fr)); grid-template-rows: 1.1rem repeat(7, auto); gap: .23rem; }
 .month-label, .heat-weekday { font-size: .68rem; color: var(--muted); white-space: nowrap; align-self: center; }
 .heat-weekday { grid-column: 1; }
+.heat-grid-short { width: min(100%, 29rem); min-width: 0; grid-template-columns: 1rem repeat(14, minmax(0, 1fr)); }
 .heat-cell { aspect-ratio: 1; min-width: 0; display: block; border: 1px solid color-mix(in srgb, var(--ink) 11%, transparent); padding: 0; border-radius: .22rem; transition: background-color .16s; }
 .heat-cell[aria-current] { outline: 1px solid var(--ink); outline-offset: 1px; }
 .heat-cell[aria-current]:focus-visible { outline: 2px solid var(--outline); }
@@ -195,6 +196,11 @@ progress::-moz-progress-bar { background: var(--action); }
 
 .journal-dialog { width: min(calc(100% - 1.75rem), 34rem); max-height: calc(100dvh - 1.75rem); padding: clamp(1.05rem, 4vw, 1.55rem); border: 1px solid var(--line); border-radius: 1rem; color: var(--ink); background: var(--surface); box-shadow: 0 20px 80px #13251c44; overscroll-behavior: contain; }
 .journal-dialog::backdrop { background: #111d16a0; backdrop-filter: blur(3px); }
+.template-drawer { margin: 0 0 0 auto; width: min(100%, 31rem); height: 100dvh; max-height: 100dvh; border-radius: 1rem 0 0 1rem; }
+.template-list { display: grid; gap: .75rem; }
+.template-pack { padding: .9rem; border: 1px solid var(--line); border-radius: .7rem; }
+.template-pack ul { display: grid; gap: .4rem; padding: 0; list-style: none; margin: .65rem 0; }
+.template-pack small { display: block; color: var(--muted); }
 .dialog-heading { display: flex; justify-content: space-between; align-items: start; gap: .7rem; margin-bottom: 1.15rem; }
 .dialog-heading h2 { font: 400 clamp(1.9rem, 6vw, 2.85rem)/1.04 var(--serif); overflow-wrap: anywhere; }
 .dialog-heading p { margin-top: .3rem; color: var(--muted); overflow-wrap: anywhere; }
@@ -226,6 +232,17 @@ progress::-moz-progress-bar { background: var(--action); }
 .selected-day { display: grid; justify-items: start; gap: .55rem; margin-top: .85rem; }
 .selected-day small { display: block; }
 .history-hint { margin-top: .65rem; }
+.entry-reflection { flex: 1 0 100%; width: 100%; font-size: .85rem; color: var(--muted); }
+.entry-reflection summary { width: fit-content; cursor: pointer; padding: .35rem 0; color: var(--soft-ink); font-weight: 650; }
+.reflection-actions { margin-bottom: .15rem; }
+.reflection-fields { display: grid; gap: .45rem; justify-items: start; }
+.reflection-fields textarea { width: 100%; resize: vertical; background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: .5rem; padding: .5rem; }
+.freeze-status { display: inline-flex; align-items: center; gap: .25rem; border-radius: 1rem; padding: .2rem .45rem; background: var(--soft); color: var(--soft-ink); font-size: .75rem; }
+.milestones { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0; gap: .5rem; }
+.milestones li { display: grid; align-content: start; gap: .22rem; border: 1px solid var(--line); padding: .65rem; border-radius: .65rem; }
+.milestones li[data-reached='true'] { background: var(--soft); color: var(--soft-ink); }
+.milestones strong { font: 400 clamp(1.55rem, 4vw, 2.25rem)/1 var(--serif); }
+.milestones span, .milestones small { font-size: .76rem; overflow-wrap: anywhere; }
 .settings-section { display: grid; justify-items: start; gap: .65rem; padding: .95rem 0; border-top: 1px solid var(--line); }
 .settings-section h3 { display: flex; align-items: center; gap: .45rem; font-size: .98rem; }
 .settings-section p { font-size: .85rem; color: var(--muted); }

@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react'
-import { ChartNoAxesColumnIncreasing } from 'lucide-react'
+import { ChartNoAxesColumnIncreasing, Flame } from 'lucide-react'
 import { completionTrend, type Period } from '../lib/insights'
 import { completionRate, habitStats, scheduleLabel, type Journal } from '../lib/tracking'
 import { EntryIcon } from './HabitEntry'
+import { TrackerCalendar } from './TrackerCalendar'
 
-export function TrackerInsights({ journal, today, onOpenHabit }: {
+export function TrackerInsights({ journal, today, onOpenHabit, onSelectDay }: {
   journal: Journal
   today: Date
   onOpenHabit: (id: string) => void
+  onSelectDay: (day: string) => void
 }) {
   const [period, setPeriod] = useState<Period>('week')
   const points = useMemo(() => completionTrend(journal, today, period), [journal, period, today])
@@ -27,6 +29,21 @@ export function TrackerInsights({ journal, today, onOpenHabit }: {
         <div className="panel"><span>Check-ins completed</span><strong>{overview.count.toLocaleString()}</strong></div>
         <div className="panel"><span>Habits tracked</span><strong>{rows.length.toLocaleString()}</strong></div>
       </div>
+      <TrackerCalendar journal={journal} today={today} onSelect={onSelectDay} consistency />
+      <section className="panel">
+        <div className="panel-heading"><span className="section-icon"><Flame size={19} /></span><div>
+          <h2>Streak milestones</h2><p>Consecutive scheduled check-in days for daily and weekday habits.</p>
+        </div></div>
+        <ul className="milestones">
+          {[7, 30, 100].map((days) => {
+            const reached = rows.filter(({ habit, best }) => habit.schedule !== 'weekly' && best >= days)
+            return <li key={days} data-reached={reached.length > 0}><strong>{days}d</strong>
+              <span>{reached.length ? `${reached.length} ${reached.length === 1 ? 'habit' : 'habits'} reached` : 'In progress'}</span>
+              {reached.length > 0 && <small>{reached.map(({ habit }) => habit.name).join(', ')}</small>}
+            </li>
+          })}
+        </ul>
+      </section>
       <section className="panel">
         <div className="calendar-header">
           <div className="panel-heading">

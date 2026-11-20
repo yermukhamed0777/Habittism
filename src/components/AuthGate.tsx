@@ -27,7 +27,10 @@ export function AuthShell({ children }: { children: ReactNode }) {
   )
 }
 
-export function AuthGate({ children }: { children: (account: Account) => ReactNode }) {
+export function AuthGate({ children, guest }: {
+  children: (account: Account) => ReactNode
+  guest: (openAccount: () => void) => ReactNode
+}) {
   const client = supabase
   const [session, setSession] = useState<Session | null>()
   const [mode, setMode] = useState<Mode>('signin')
@@ -36,6 +39,7 @@ export function AuthGate({ children }: { children: (account: Account) => ReactNo
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState(callbackError ?? '')
+  const [showAuth, setShowAuth] = useState(!!callbackError)
 
   useEffect(() => {
     if (!client) return
@@ -47,6 +51,7 @@ export function AuthGate({ children }: { children: (account: Account) => ReactNo
       setSession(next)
       if (event === 'SIGNED_OUT') {
         setMode('signin')
+        setShowAuth(false)
         setPassword('')
         setNotice('')
         setError('')
@@ -120,17 +125,20 @@ export function AuthGate({ children }: { children: (account: Account) => ReactNo
     })
   }
 
+  if (client && session === undefined) return <AuthShell><p role="status">Checking your session…</p></AuthShell>
+  if (client && session && mode !== 'recovery') return children({ client, session })
+  if (!showAuth && mode !== 'recovery') return guest(() => setShowAuth(true))
+
   if (!client) {
     return (
       <AuthShell>
         <h1>Connect Supabase.</h1>
         <p>Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env.local</code> using <code>.env.example</code>, or add them in your Vercel project settings.</p>
         <p>Use a Supabase publishable or legacy anon key. Restart the dev server or redeploy after saving.</p>
+        <button className="secondary" type="button" onClick={() => setShowAuth(false)}>Back to guest journal</button>
       </AuthShell>
     )
   }
-  if (session === undefined) return <AuthShell><p role="status">Checking your session…</p></AuthShell>
-  if (session && mode !== 'recovery') return children({ client, session })
 
   const usesPassword = mode === 'signin' || mode === 'signup' || mode === 'recovery'
   const submitLabel = { signin: 'Sign in', signup: 'Create account', magic: 'Send sign-in link', reset: 'Send reset link', recovery: 'Save password' }[mode]
@@ -165,6 +173,9 @@ export function AuthGate({ children }: { children: (account: Account) => ReactNo
       {mode !== 'signin' && mode !== 'recovery' && (
         <div className="auth-links"><button type="button" disabled={busy} onClick={() => changeMode('signin')}>Back to sign in</button></div>
       )}
+      {mode !== 'recovery' && <div className="auth-links">
+        <button type="button" disabled={busy} onClick={() => { changeMode('signin'); setShowAuth(false) }}>Back to guest journal</button>
+      </div>}
     </AuthShell>
   )
 }
