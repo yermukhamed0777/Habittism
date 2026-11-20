@@ -57,7 +57,7 @@ export function TrackerCalendar({ journal, today, onSelect }: { journal: Journal
 
   return (
     <>
-      <div className="page-heading"><h1>Calendar</h1><p>Explore check-ins by date.</p></div>
+      <div className="page-heading"><h1>Calendar</h1></div>
       <section className="panel calendar-panel">
         <div className="calendar-header">
           <div className="panel-heading"><span className="section-icon"><CalendarDays size={19} /></span><div><h2>Activity calendar</h2><p>{range}</p></div></div>

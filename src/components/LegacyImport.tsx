@@ -11,15 +11,17 @@ export function LegacyImport({ browserBackup, today, email, onImport, onClose }:
   onClose: () => void
 }) {
   const [fileBackup, setFileBackup] = useState<LegacyJournal>()
+  const [fileSelected, setFileSelected] = useState(false)
   const [loadingFile, setLoadingFile] = useState(false)
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
-  const backup = fileBackup ?? browserBackup
+  const backup = fileSelected ? fileBackup : browserBackup
 
   async function readFile(event: ChangeEvent<HTMLInputElement>) {
     setError('')
     setFileBackup(undefined)
     const file = event.target.files?.[0]
+    setFileSelected(!!file)
     if (!file) return
     setLoadingFile(true)
     try {
@@ -39,7 +41,7 @@ export function LegacyImport({ browserBackup, today, email, onImport, onClose }:
     setImporting(true)
     setError('')
     try {
-      await onImport(backup, !fileBackup)
+      await onImport(backup, !fileSelected)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not import your backup. Please try again.')
       setImporting(false)

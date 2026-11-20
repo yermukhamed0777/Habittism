@@ -88,6 +88,7 @@ a { color: inherit; }
 .secondary, .icon-button, .pill { background: var(--surface); border-color: var(--line); }
 .icon-button { width: 2.45rem; padding: 0; }
 .pill { min-height: 2.17rem; border-radius: 2rem; padding: .3rem .7rem; }
+.pill[aria-pressed='true'] { border-color: color-mix(in srgb, var(--action) 35%, var(--line)); }
 .pill svg { margin-right: .08rem; }
 .text-button { color: var(--soft-ink); font-size: .82rem; font-weight: 690; padding: .35rem 0; text-decoration: underline; text-underline-offset: .23em; }
 .danger-button { color: var(--danger); }
@@ -259,10 +260,14 @@ progress::-moz-progress-bar { background: var(--action); }
   .greeting-hero { border-radius: .85rem; }
   .main-nav button { padding-inline: .57rem; min-height: 2.6rem; flex: none; }
 }
+@media (max-width: 520px) {
+  .main-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .15rem; }
+  .main-nav button { padding-inline: .15rem; font-size: clamp(.68rem, 2.8vw, .83rem); }
+  .main-nav button svg { display: none; }
+}
 @media (max-width: 380px) {
   .header-add span { display: none; }
   .header-add { width: 2.45rem; padding-inline: .35rem; }
-  .main-nav button svg { display: none; }
   .habit-row .numeric-control { flex-basis: 100%; max-width: none; }
   .form-columns { grid-template-columns: minmax(0, 1fr); }
 }

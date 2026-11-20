@@ -16,7 +16,7 @@ export function useCloudJournal(initial: Journal, repository: HabitRepository) {
       clearTimeout(timer)
       if (writing || pending.size === 0) return
       const [key, task] = pending.entries().next().value as [string, Write]
-      const delay = task.readyAt - Date.now()
+      const delay = task.readyAt - performance.now()
       if (delay > 0) {
         timer = setTimeout(() => void flush(), delay)
         return
@@ -40,7 +40,7 @@ export function useCloudJournal(initial: Journal, repository: HabitRepository) {
     return {
       flush,
       add(key: string, send: Write['send'], delay = 0) {
-        pending.set(key, { send, readyAt: Date.now() + delay })
+        pending.set(key, { send, readyAt: performance.now() + delay })
         setSync((previous) => ({ ...previous, pending: pending.size }))
         void flush()
       },

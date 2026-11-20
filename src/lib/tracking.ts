@@ -75,7 +75,7 @@ export function isComplete(habit: HabitInput, log?: HabitLog) {
 }
 
 export function isScheduled(habit: TrackedHabit, date: Date, key = toKey(date)) {
-  if (key < habit.createdOn || habit.schedule === 'weekly') return false
+  if (habit.archived || key < habit.createdOn || habit.schedule === 'weekly') return false
   return habit.schedule === 'daily' || habit.weekdays.includes(date.getDay())
 }
 
@@ -143,6 +143,7 @@ export function habitStats(habit: TrackedHabit, logs: HabitLogs, today: Date) {
   }
 
   const start = fromKey(habit.createdOn)
+  if (habit.archived) return { current, best, total, completed, opportunities, rate: 0 }
   if (habit.schedule === 'weekly' && start <= today) {
     const activeWeek = startOfWeekMonday(today)
     for (let week = startOfWeekMonday(start); week <= activeWeek; week = addWeeks(week, 1)) {

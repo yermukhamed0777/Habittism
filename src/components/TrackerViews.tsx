@@ -33,7 +33,7 @@ function AffirmationEditor({ tracker, today, showHistory = false }: {
           ? <button className="text-button" type="button" onClick={() => {
             if (window.confirm('Clear today’s affirmation?')) tracker.writeAffirmation(key, '')
           }}>Clear entry</button>
-          : <button className="text-button" type="button" onClick={() => tracker.writeAffirmation(key, pickPrompt())}>Use a prompt</button>}
+          : !showHistory && <button className="text-button" type="button" onClick={() => tracker.writeAffirmation(key, pickPrompt())}>Use a prompt</button>}
       </div>
       {showHistory && (
         <>
@@ -112,7 +112,7 @@ function TodayList({ tracker, today, due, onAdd, onOpenHabit }: HabitViewProps &
     <section className="panel today-list">
       <div className="panel-heading">
         <span className="section-icon"><Leaf size={19} /></span>
-        <div><h2>Today’s habits</h2><p>{done} of {due.length} complete</p></div>
+        <div><h2>Today’s habits</h2>{!!due.length && <p>{done} of {due.length} complete</p>}</div>
       </div>
       {due.length ? (
         <ul className="habit-list">

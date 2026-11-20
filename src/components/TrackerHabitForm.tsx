@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { Plus } from 'lucide-react'
 import { HABIT_ICON_MAP, ICON_CHOICES } from '../lib/icons'
 import { categories, colors, weekdays, type Accent, type Category, type HabitInput, type Schedule } from '../lib/tracking'
@@ -7,6 +7,7 @@ import { JournalDialog } from './JournalDialog'
 const accentNames: Record<Accent, string> = { iris: 'Lilac', aqua: 'Teal', mint: 'Sage', amber: 'Ochre', rose: 'Rose' }
 
 export function TrackerHabitForm({ onCreate, onClose }: { onCreate: (habit: HabitInput) => void; onClose: () => void }) {
+  const fieldId = useId()
   const [schedule, setSchedule] = useState<Schedule>('daily')
   const [days, setDays] = useState<number[]>([1, 3, 5])
   const [category, setCategory] = useState<Category>('health')
@@ -41,19 +42,21 @@ export function TrackerHabitForm({ onCreate, onClose }: { onCreate: (habit: Habi
       <form className="habit-form" onSubmit={submit}>
         <label className="field">Habit name <input name="name" required maxLength={80} placeholder="Read 20 pages" /></label>
         <div className="form-columns">
-          <label className="field">Schedule
-            <select value={schedule} onChange={(event) => setSchedule(event.target.value as Schedule)}>
+          <div className="field">
+            <label htmlFor={`${fieldId}-schedule`}>Schedule</label>
+            <select id={`${fieldId}-schedule`} value={schedule} onChange={(event) => setSchedule(event.target.value as Schedule)}>
               <option value="daily">Every day</option>
               <option value="weekdays">Specific weekdays</option>
               <option value="weekly">Weekly frequency</option>
             </select>
-          </label>
-          <label className="field">Tracking type
-            <select value={kind} onChange={(event) => setKind(event.target.value as HabitInput['kind'])}>
+          </div>
+          <div className="field">
+            <label htmlFor={`${fieldId}-kind`}>Tracking type</label>
+            <select id={`${fieldId}-kind`} value={kind} onChange={(event) => setKind(event.target.value as HabitInput['kind'])}>
               <option value="binary">Check-in</option>
               <option value="numeric">Numeric goal</option>
             </select>
-          </label>
+          </div>
         </div>
         {schedule === 'weekdays' && (
           <fieldset className="choice-group">
@@ -67,9 +70,10 @@ export function TrackerHabitForm({ onCreate, onClose }: { onCreate: (habit: Habi
           </fieldset>
         )}
         {schedule === 'weekly' && (
-          <label className="field">Days per week
-            <select name="target" defaultValue="4">{[1, 2, 3, 4, 5, 6, 7].map((count) => <option key={count}>{count}</option>)}</select>
-          </label>
+          <div className="field">
+            <label htmlFor={`${fieldId}-target`}>Days per week</label>
+            <select id={`${fieldId}-target`} name="target" defaultValue="4">{[1, 2, 3, 4, 5, 6, 7].map((count) => <option key={count}>{count}</option>)}</select>
+          </div>
         )}
         {kind === 'numeric' && (
           <div className="form-columns">
@@ -78,11 +82,12 @@ export function TrackerHabitForm({ onCreate, onClose }: { onCreate: (habit: Habi
           </div>
         )}
         <div className="form-columns">
-          <label className="field">Category
-            <select value={category} onChange={(event) => setCategory(event.target.value as Category)}>
+          <div className="field">
+            <label htmlFor={`${fieldId}-category`}>Category</label>
+            <select id={`${fieldId}-category`} value={category} onChange={(event) => setCategory(event.target.value as Category)}>
               {Object.entries(categories).map(([key, name]) => <option key={key} value={key}>{name}</option>)}
             </select>
-          </label>
+          </div>
           {category === 'custom' && <label className="field">Custom category <input name="customCategory" maxLength={40} placeholder="Learning" /></label>}
         </div>
         <fieldset className="choice-group">

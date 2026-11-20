@@ -32,7 +32,7 @@ export function TrackerHistory({ tracker, habit, today, initialDay, onClose }: {
 
   function canFreeze(day: Date) {
     const key = toKey(day)
-    return key <= todayKey && key >= habit.createdOn && !logs[key]?.value &&
+    return !habit.archived && key <= todayKey && key >= habit.createdOn && !logs[key]?.value &&
       (habit.schedule === 'weekly' || isScheduled(habit, day, key))
   }
 
