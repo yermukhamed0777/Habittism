@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
-import { CalendarDays, ChartNoAxesColumnIncreasing, House, Leaf, ListChecks, Plus, Settings, Sun } from 'lucide-react'
+import { CalendarDays, ChartNoAxesColumnIncreasing, House, Leaf, ListChecks, Plus, Search, Settings, Sun, Target } from 'lucide-react'
 import { AuthShell } from './components/AuthGate'
 import { JournalDialog } from './components/JournalDialog'
+import { CommandMenu, type WorkspaceCommand } from './components/CommandMenu'
 import { LegacyImport } from './components/LegacyImport'
 import { ReminderSettings } from './components/ReminderSettings'
 import { StarterPacks } from './components/StarterPacks'
@@ -31,9 +32,14 @@ const navigation = [
 ] as const
 
 type View = (typeof navigation)[number]['id']
-type Dialog = { kind: 'create' | 'settings' | 'import' | 'importing' | 'templates' } | { kind: 'day'; day: string }
+type Dialog = { kind: 'create' | 'settings' | 'import' | 'importing' | 'templates' | 'commands' } | { kind: 'day'; day: string }
   | { kind: 'habit'; id: string; day?: string } | { kind: 'edit'; id: string }
 type Account = { client: SupabaseClient; session: Session }
+
+function initialView(): View {
+  const requested = new URLSearchParams(window.location.search).get('view')
+  return navigation.find(({ id }) => id === requested)?.id ?? 'greeting'
+}
 
 function displayName(session: Session) {
   const name = session.user.user_metadata.full_name ?? session.user.user_metadata.name
@@ -96,7 +102,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
   const { client, session, repository } = account ?? {}
   const userId = session?.user.id
   const tracker = useCloudJournal(initial, repository)
-  const [view, setView] = useState<View>('greeting')
+  const [view, setView] = useState(initialView)
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [accountError, setAccountError] = useState('')
   const [signingOut, setSigningOut] = useState(false)
@@ -118,6 +124,27 @@ function Dashboard({ account, initial, openAccount, merged }: {
   const openHabit = (id: string, day?: string) => setDialog({ kind: 'habit', id, day })
   const onAdd = () => setDialog({ kind: 'create' })
   const habitView = { tracker, today, due, onAdd, onOpenHabit: openHabit, onTemplates: () => setDialog({ kind: 'templates' }) }
+
+  useEffect(() => {
+    function openCommands(event: KeyboardEvent) {
+      if ((!event.ctrlKey && !event.metaKey) || event.key.toLowerCase() !== 'k' || event.repeat) return
+      if (dialog && dialog.kind !== 'commands') return
+      event.preventDefault()
+      setDialog(dialog ? null : { kind: 'commands' })
+    }
+    window.addEventListener('keydown', openCommands)
+    return () => window.removeEventListener('keydown', openCommands)
+  }, [dialog])
+
+  const commands: WorkspaceCommand[] = dialog?.kind === 'commands' ? [
+    ...navigation.map(({ id, label, icon }) => ({ id, label, icon, detail: 'Page', run: () => setView(id) })),
+    { id: 'new', label: 'New habit', detail: 'Action', icon: Plus, run: onAdd },
+    { id: 'settings', label: 'Settings', detail: 'Action', icon: Settings, run: () => setDialog({ kind: 'settings' }) },
+    ...tracker.journal.habits.map((habit) => ({
+      id: habit.id, label: habit.name, icon: Target, detail: habit.archived ? 'Archived habit' : 'Habit',
+      run: () => openHabit(habit.id),
+    })),
+  ] : []
 
   async function importBackup(backup: LegacyJournal, fromBrowser: boolean) {
     if (!repository || !userId) return
@@ -168,6 +195,8 @@ function Dashboard({ account, initial, openAccount, merged }: {
               onClick={() => setView(id)}><Icon size={16} /> {label}</button>)}
           </nav>
           <div className="header-actions">
+            <button className="icon-button" type="button" aria-label="Command menu" aria-keyshortcuts="Control+K Meta+K"
+              title="Jump to (Ctrl/⌘ K)" onClick={() => setDialog({ kind: 'commands' })}><Search size={18} /></button>
             <ThemeToggle />
             <button className="icon-button" type="button" aria-label="Settings" onClick={() => setDialog({ kind: 'settings' })}><Settings size={19} /></button>
             <button className="primary header-add" type="button" onClick={onAdd} aria-label="New habit"><Plus size={17} /> <span>New habit</span></button>
@@ -201,6 +230,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
         {view === 'insights' && <TrackerInsights journal={tracker.journal} today={today} onOpenHabit={openHabit} onSelectDay={(day) => setDialog({ kind: 'day', day })} />}
       </main>
       {dialog?.kind === 'create' && <TrackerHabitForm onClose={close} onSave={(habit) => tracker.createHabit(habit, todayKey)} />}
+      {dialog?.kind === 'commands' && <CommandMenu commands={commands} onClose={close} />}
       {dialog?.kind === 'edit' && selectedHabit && <TrackerHabitForm habit={selectedHabit} onClose={close}
         onSave={(habit) => tracker.updateDetails(selectedHabit.id, habit)} />}
       {dialog?.kind === 'templates' && <StarterPacks onClose={close} onAdd={(habits) => tracker.createHabits(habits, todayKey)} />}

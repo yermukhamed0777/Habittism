@@ -232,6 +232,15 @@ progress::-moz-progress-bar { background: var(--action); }
 .selected-day { display: grid; justify-items: start; gap: .55rem; margin-top: .85rem; }
 .selected-day small { display: block; }
 .history-hint { margin-top: .65rem; }
+.command-search { max-width: none; }
+.command-list { max-height: min(43dvh, 24rem); overflow-y: auto; margin-top: .75rem; padding: .15rem; list-style: none; }
+.command-list button { width: 100%; display: flex; align-items: center; gap: .65rem; padding: .65rem; border-radius: .55rem; text-align: left; }
+.command-list button[aria-selected='true'] { background: var(--soft); color: var(--soft-ink); }
+.command-list button > span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.command-list strong, .command-list small { display: block; }
+.command-list small { color: var(--muted); font-size: .72rem; }
+.command-hints { color: var(--muted); display: flex; flex-wrap: wrap; gap: .7rem; font-size: .75rem; margin-top: .8rem; }
+.command-hints kbd { padding: .1rem .24rem; border: 1px solid var(--line); border-radius: .22rem; }
 .entry-reflection { flex: 1 0 100%; width: 100%; font-size: .85rem; color: var(--muted); }
 .entry-reflection summary { width: fit-content; cursor: pointer; padding: .35rem 0; color: var(--soft-ink); font-weight: 650; }
 .reflection-actions { margin-bottom: .15rem; }
