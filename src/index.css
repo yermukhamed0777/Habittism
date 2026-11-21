@@ -394,6 +394,16 @@ progress::-moz-progress-bar { background: var(--action); }
 .insight-streaks td { font-variant-numeric: tabular-nums; }
 .insight-streaks .habit-name { min-width: 7rem; }
 
+.coach-panel { display: grid; gap: .7rem; }
+.coach-content { display: grid; gap: .75rem; margin-top: .4rem; }
+.coach-bubble { padding: .75rem 1rem; border-radius: .75rem; background: var(--field); border: 1px solid var(--line); display: grid; gap: .25rem; }
+.coach-bubble strong { font-size: .84rem; color: var(--soft-ink); }
+.coach-bubble p { font-size: .88rem; line-height: 1.45; }
+.coach-action { background: color-mix(in srgb, var(--action) 8%, var(--surface)); border-color: color-mix(in srgb, var(--action) 25%, var(--line)); }
+.coach-actions { display: grid; gap: .45rem; justify-items: start; margin-top: .35rem; }
+.coach-privacy { font-size: .76rem; color: var(--muted); }
+.coach-status { font-size: .8rem; color: var(--soft-ink); font-weight: 550; }
+
 @media (max-width: 920px) {
   .header-inner { display: grid; grid-template-columns: 1fr auto; gap: .5rem; padding-block: .6rem; }
   .header-actions { grid-column: 2; grid-row: 1; }

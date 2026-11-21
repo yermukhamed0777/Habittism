@@ -258,6 +258,17 @@ try {
   for (const badge of ['7d', '30d', '100d']) await page.getByText(badge, { exact: true }).waitFor()
   await page.getByRole('button', { name: 'Monthly', exact: true }).click()
   await page.getByRole('list', { name: 'Monthly completion rates' }).waitFor()
+  await page.getByRole('heading', { name: 'Weekly Habit Coach' }).waitFor()
+  await page.getByText('Weekly observation').waitFor()
+  await page.getByText('Recommended adjustment').waitFor()
+  await context.route('**/api/coach', (route) => route.fulfill({
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+    json: { available: true, observation: 'Consistent tracking this week.', adjustment: 'Keep current pace.' },
+  }))
+  await page.getByRole('button', { name: 'Get AI suggestion' }).click()
+  await page.getByText('AI suggestion generated for next week.').waitFor()
+  await page.getByText('Consistent tracking this week.').waitFor()
   await screenshot('insights-light')
   console.log('PASS weekly frequency, numeric progress, category filters, search, and monthly insights')
 

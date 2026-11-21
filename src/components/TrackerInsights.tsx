@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react'
-import { ChartNoAxesColumnIncreasing, Flame } from 'lucide-react'
+import type { Session } from '@supabase/supabase-js'
+import { ChartNoAxesColumnIncreasing, Flame, Sparkles } from 'lucide-react'
 import { completionTrend, type Period } from '../lib/insights'
 import { completionRate, habitStats, scheduleLabel, type Journal } from '../lib/tracking'
+import { buildWeeklySummary, getSanitizedCoachStats } from '../lib/coach'
 import { EntryIcon } from './HabitEntry'
 import { TrackerCalendar } from './TrackerCalendar'
 
-export function TrackerInsights({ journal, today, onOpenHabit, onSelectDay }: {
+export function TrackerInsights({ journal, today, session, onOpenHabit, onSelectDay }: {
   journal: Journal
   today: Date
+  session?: Session
   onOpenHabit: (id: string) => void
   onSelectDay: (day: string) => void
 }) {
@@ -20,6 +23,47 @@ export function TrackerInsights({ journal, today, onOpenHabit, onSelectDay }: {
   const last = points.at(-2)
   const previous = points.at(-3)
   const change = last?.planned && previous?.planned ? last.rate - previous.rate : null
+
+  const summary = useMemo(() => buildWeeklySummary(journal, today), [journal, today])
+  const [aiSuggestion, setAiSuggestion] = useState<{ observation: string; adjustment: string } | null>(null)
+  const [coachStatus, setCoachStatus] = useState<string>('')
+  const [loadingCoach, setLoadingCoach] = useState(false)
+
+  async function requestAiCoach() {
+    if (!session?.access_token || loadingCoach) return
+    setLoadingCoach(true)
+    setCoachStatus('')
+    try {
+      const stats = getSanitizedCoachStats(journal, today)
+      const res = await fetch('/api/coach', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(stats),
+      })
+      if (!res.ok) {
+        if (res.status === 429) {
+          setCoachStatus('Daily AI suggestion limit reached. Your deterministic summary remains active.')
+        } else {
+          setCoachStatus('AI coach service is currently resting. Your deterministic summary is always available.')
+        }
+        return
+      }
+      const data = await res.json()
+      if (data.available && data.observation && data.adjustment) {
+        setAiSuggestion({ observation: data.observation, adjustment: data.adjustment })
+        setCoachStatus('AI suggestion generated for next week.')
+      } else {
+        setCoachStatus(data.message || 'AI coach is unconfigured on this deployment. Deterministic review is active.')
+      }
+    } catch {
+      setCoachStatus('Could not reach the coach service. Your deterministic summary is shown below.')
+    } finally {
+      setLoadingCoach(false)
+    }
+  }
 
   return (
     <>
@@ -44,6 +88,47 @@ export function TrackerInsights({ journal, today, onOpenHabit, onSelectDay }: {
           })}
         </ul>
       </section>
+
+      <section className="panel coach-panel">
+        <div className="panel-heading">
+          <span className="section-icon"><Sparkles size={19} /></span>
+          <div>
+            <h2>Weekly Habit Coach</h2>
+            <p>Grounding reflection and realistic adjustments for next week.</p>
+          </div>
+        </div>
+        <div className="coach-content">
+          <div className="coach-bubble">
+            <strong>Weekly observation</strong>
+            <p>{aiSuggestion?.observation || summary.observation}</p>
+          </div>
+          <div className="coach-bubble coach-action">
+            <strong>Recommended adjustment</strong>
+            <p>{aiSuggestion?.adjustment || summary.adjustment}</p>
+          </div>
+          {session ? (
+            <div className="coach-actions">
+              <button
+                type="button"
+                className="secondary"
+                disabled={loadingCoach}
+                onClick={() => void requestAiCoach()}
+              >
+                <Sparkles size={16} /> {loadingCoach ? 'Consulting coach…' : 'Get AI suggestion'}
+              </button>
+              <p className="coach-privacy">
+                Privacy first: Only aggregate stats ({summary.habitsCount} habits, {summary.rate}% rate) are sent. Notes, reflections, and affirmations stay private on your device.
+              </p>
+              {coachStatus && <p className="coach-status" role="status">{coachStatus}</p>}
+            </div>
+          ) : (
+            <p className="coach-privacy">
+              Deterministic weekly summary. Sign in to optionally request an AI suggestion.
+            </p>
+          )}
+        </div>
+      </section>
+
       <section className="panel">
         <div className="calendar-header">
           <div className="panel-heading">

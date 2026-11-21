@@ -253,7 +253,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
         {view === 'today' && <TodayView {...habitView} onSelectDay={(day) => setDialog({ kind: 'day', day })} />}
         {view === 'habits' && <HabitLibrary {...habitView} />}
         {view === 'calendar' && <TrackerCalendar journal={tracker.journal} today={today} onSelect={(day) => setDialog({ kind: 'day', day })} />}
-        {view === 'insights' && <TrackerInsights journal={tracker.journal} today={today} onOpenHabit={openHabit} onSelectDay={(day) => setDialog({ kind: 'day', day })} />}
+        {view === 'insights' && <TrackerInsights journal={tracker.journal} today={today} session={session} onOpenHabit={openHabit} onSelectDay={(day) => setDialog({ kind: 'day', day })} />}
       </main>
       {dialog?.kind === 'create' && <TrackerHabitForm onClose={close} onSave={(habit) => tracker.createHabit(habit, todayKey)} />}
       {dialog?.kind === 'commands' && <CommandMenu commands={commands} onClose={close} />}
