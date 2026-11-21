@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { LegacyJournal } from './legacyJournal'
-import type { HabitInput, HabitLog, Journal, TrackedHabit } from './tracking'
+import { archiveHistory, type ArchivePeriod, type HabitInput, type HabitLog, type Journal, type TrackedHabit } from './tracking'
 
 export function habitFields(habit: HabitInput) {
   return {
@@ -18,7 +18,13 @@ export function habitFields(habit: HabitInput) {
   }
 }
 
-type HabitRow = ReturnType<typeof habitFields> & { id: string; created_on: string; archived: boolean }
+type HabitRow = ReturnType<typeof habitFields> & {
+  id: string
+  created_on: string
+  archived: boolean
+  archived_at?: string
+  archive_periods?: ArchivePeriod[]
+}
 type LogRow = HabitLog & { habit_id: string; day: string }
 type AffirmationRow = { day: string; body: string }
 type Result<T> = { data: T | null; error: { message: string } | null }
@@ -76,6 +82,8 @@ export function habitRepository(client: SupabaseClient, userId: string) {
           unit: habit.unit,
           createdOn: habit.created_on,
           archived: habit.archived,
+          archived_at: habit.archived_at,
+          archivePeriods: habit.archive_periods,
         })),
         logs,
         affirmations: Object.fromEntries(notes.map(({ day, body }) => [day, body])),
@@ -94,15 +102,11 @@ export function habitRepository(client: SupabaseClient, userId: string) {
     deleteHabit(id: string) {
       return checked(client.from('habits').delete().eq('user_id', userId).eq('id', id))
     },
-    /**
-     * Toggle the archived flag of a habit. The Supabase row level security policy
-     * allows authenticated users to update their own habit rows. This method
-     * only updates the `archived` column.
-     */
-    updateHabit(id: string, archived: boolean) {
-      const data: Record<string, any> = { archived }
-      if (archived) data.archived_at = new Date().toISOString()
-      return checked(client.from('habits').update(data).eq('user_id', userId).eq('id', id))
+    updateArchive(id: string, archived: boolean, periods: ArchivePeriod[]) {
+      const start = archived ? periods.at(-1)?.start : null
+      return checked(client.from('habits').update({
+        archived, archive_periods: periods, archived_at: start ? `${start}T00:00:00Z` : null,
+      }).eq('user_id', userId).eq('id', id))
     },
 
     writeLog(id: string, day: string, log: HabitLog | null) {
@@ -127,6 +131,7 @@ export function habitRepository(client: SupabaseClient, userId: string) {
       return checked(client.rpc('merge_guest_journal', { payload: {
         habits: journal.habits.map((habit) => ({
           ...habitFields(habit), id: habit.id, created_on: habit.createdOn, archived: habit.archived,
+          archive_periods: archiveHistory(habit),
         })),
         logs: Object.entries(journal.logs).flatMap(([id, logs]) =>
           Object.entries(logs).map(([day, log]) => ({ habit_id: id, day, ...logFields(log) }))),

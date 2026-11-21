@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { ArrowRight, CalendarDays, Feather, Leaf, Plus, Search, Snowflake, Archive } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowRight, CalendarDays, Feather, Leaf, Plus, Search, Snowflake } from 'lucide-react'
 import { AFFIRMATION_PROMPTS, greetingFor, pickPrompt } from '../lib/affirmations'
 import { fromKey, startOfWeekMonday, toKey } from '../lib/dates'
 import { categoryLabel, focusQueue, formatDay, isComplete, scheduleLabel, weekProgress, type TrackedHabit } from '../lib/tracking'
@@ -136,9 +136,10 @@ function TodayList({ tracker, today, due, onAdd, onOpenHabit, onTemplates, focus
   )
 }
 
-function HabitRow({ habit, tracker, today, onOpenHabit, showControl }: Pick<HabitViewProps, 'tracker' | 'today' | 'onOpenHabit'> & {
+function HabitRow({ habit, tracker, today, onOpenHabit, showControl, manageArchive }: Pick<HabitViewProps, 'tracker' | 'today' | 'onOpenHabit'> & {
   habit: TrackedHabit
   showControl: boolean
+  manageArchive?: boolean
 }) {
   const key = toKey(today)
   const logs = tracker.journal.logs[habit.id] ?? {}
@@ -151,15 +152,10 @@ function HabitRow({ habit, tracker, today, onOpenHabit, showControl }: Pick<Habi
         <EntryIcon habit={habit} />
         <span><strong>{habit.name}</strong><small>{habit.archived ? 'Archived · ' : ''}{categoryLabel(habit)} · {scheduleLabel(habit)}</small></span>
       </button>
-      {/* Archive toggle button */}
-      <button type="button" className="icon-button" aria-label={habit.archived ? `Unarchive ${habit.name}` : `Archive ${habit.name}`} onClick={() => {
-        if (habit.archived) {
-          tracker.updateHabit(habit.id, false)
-        } else if (window.confirm(`Archive “${habit.name}”?`)) {
-          tracker.updateHabit(habit.id, true)
-        }
-      }}>
-        <Archive size={16} /></button>
+      {manageArchive && <button type="button" className="icon-button" aria-label={habit.archived ? `Restore ${habit.name}` : `Archive ${habit.name}`}
+        onClick={() => tracker.updateArchive(habit, !habit.archived, key)}>
+        {habit.archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+      </button>}
       {weekly && <span className="weekly-caption">{weekly.done}/{weekly.target} this week</span>}
       {log?.frozen && <span className="freeze-status"><Snowflake size={14} /> Frozen</span>}
       {showControl && <EntryControl habit={habit} log={log} onChange={write} />}
@@ -172,9 +168,11 @@ function HabitRow({ habit, tracker, today, onOpenHabit, showControl }: Pick<Habi
 export function HabitLibrary({ tracker, today, onAdd, onOpenHabit, due, onTemplates }: HabitViewProps & { due: TrackedHabit[] }) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
+  const [status, setStatus] = useState<'active' | 'archived'>('active')
   const labels = Array.from(new Set(tracker.journal.habits.map(categoryLabel))).sort()
   const query = search.trim().toLocaleLowerCase()
   const matches = tracker.journal.habits.filter((habit) =>
+    habit.archived === (status === 'archived') &&
     (!category || categoryLabel(habit) === category) &&
     `${habit.name} ${categoryLabel(habit)} ${habit.unit}`.toLocaleLowerCase().includes(query))
   const dueIds = new Set(due.map(({ id }) => id))
@@ -184,6 +182,10 @@ export function HabitLibrary({ tracker, today, onAdd, onOpenHabit, due, onTempla
       <div className="page-heading"><h1>Habits</h1><p>{tracker.journal.habits.filter((habit) => !habit.archived).length} active</p></div>
       <section className="panel">
         {!!tracker.journal.habits.length && <div className="library-filters">
+          <div className="chips" role="group" aria-label="Habit status">
+            <button type="button" className="pill" aria-pressed={status === 'active'} onClick={() => setStatus('active')}>Active</button>
+            <button type="button" className="pill" aria-pressed={status === 'archived'} onClick={() => setStatus('archived')}>Archived</button>
+          </div>
           <label className="search-field"><Search size={18} /><input aria-label="Search habits" type="search" placeholder="Search habits" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
           <div className="chips" aria-label="Filter by category">
             <button type="button" className="pill" aria-pressed={!category} onClick={() => setCategory('')}>All habits</button>
@@ -192,7 +194,7 @@ export function HabitLibrary({ tracker, today, onAdd, onOpenHabit, due, onTempla
         </div>}
         {matches.length ? (
           <ul className="habit-list">
-            {matches.map((habit) => <HabitRow key={habit.id} habit={habit} tracker={tracker} today={today} onOpenHabit={onOpenHabit} showControl={dueIds.has(habit.id)} />)}
+            {matches.map((habit) => <HabitRow key={habit.id} habit={habit} tracker={tracker} today={today} onOpenHabit={onOpenHabit} showControl={dueIds.has(habit.id)} manageArchive />)}
           </ul>
         ) : <div className="empty"><p>{tracker.journal.habits.length ? 'No habits match your filters.' : 'Your habit list is empty.'}</p>
           {!tracker.journal.habits.length && <div className="chips">

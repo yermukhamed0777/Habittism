@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { addDays, addMonths, endOfMonth, format, startOfMonth } from 'date-fns'
 import { ChevronLeft, ChevronRight, Snowflake, Trash2 } from 'lucide-react'
 import { fromKey, startOfWeekMonday, toKey } from '../lib/dates'
-import { formatDay, habitStats, isComplete, isScheduled, scheduleLabel, updateProgress, weekdays, type HabitLog, type TrackedHabit } from '../lib/tracking'
+import { formatDay, habitStats, isActiveOn, isComplete, isScheduled, scheduleLabel, updateProgress, weekdays, type HabitLog, type TrackedHabit } from '../lib/tracking'
 import type { CloudJournal } from '../store/useCloudJournal'
 import { EntryControl, EntryIcon, EntryReflection } from './HabitEntry'
 import { JournalDialog } from './JournalDialog'
@@ -32,7 +32,7 @@ export function TrackerHistory({ tracker, habit, today, initialDay, onClose }: {
 
   function canFreeze(day: Date) {
     const key = toKey(day)
-    return !habit.archived && key <= todayKey && key >= habit.createdOn && !logs[key]?.value &&
+    return key <= todayKey && isActiveOn(habit, key) && !logs[key]?.value &&
       (habit.schedule === 'weekly' || isScheduled(habit, day, key))
   }
 

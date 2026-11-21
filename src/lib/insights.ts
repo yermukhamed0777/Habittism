@@ -16,7 +16,6 @@ export function completionTrend(journal: Journal, today: Date, period: Period) {
   const bucketFor = (date: Date) => byStart.get(toKey(weekly ? startOfWeekMonday(date) : startOfMonth(date)))
 
   for (const habit of journal.habits) {
-    if (habit.archived) continue
     const logs = journal.logs[habit.id] ?? {}
     if (habit.schedule === 'weekly') {
       for (let week = startOfWeekMonday(first); week <= today; week = addWeeks(week, 1)) {

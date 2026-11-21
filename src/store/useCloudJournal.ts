@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { saveGuestJournal } from '../lib/guestJournal'
 import type { HabitRepository } from '../lib/habitRepository'
-import type { HabitInput, HabitLog, Journal, TrackedHabit } from '../lib/tracking'
+import { changeArchive, type HabitInput, type HabitLog, type Journal, type TrackedHabit } from '../lib/tracking'
 
 type Write = { send: () => Promise<unknown>; readyAt: number }
 
@@ -84,16 +84,15 @@ export function useCloudJournal(initial: Journal, repository?: HabitRepository) 
     })
     if (repository) queue.add(`delete:${id}`, () => repository.deleteHabit(id))
   }
-  /**
-   * Archive or unarchive a habit. The local state updates immediately for UI
-   * responsiveness, while the remote update is queued.
-   */
-  function updateHabit(id: string, archived: boolean) {
-    setJournal((prev) => {
-      const habits = prev.habits.map((habit) => (habit.id === id ? { ...habit, archived } : habit))
-      return { ...prev, habits }
-    })
-    if (repository) queue.add(`update:${id}`, () => repository.updateHabit(id, archived))
+
+  function updateArchive(habit: TrackedHabit, archived: boolean, day: string) {
+    const archivePeriods = changeArchive(habit, archived, day)
+    setJournal((previous) => ({
+      ...previous,
+      habits: previous.habits.map((entry) =>
+        entry.id === habit.id ? { ...entry, archived, archivePeriods } : entry),
+    }))
+    if (repository) queue.add(`archive:${habit.id}`, () => repository.updateArchive(habit.id, archived, archivePeriods))
   }
 
   function writeLog(id: string, day: string, log: HabitLog | null) {
@@ -111,7 +110,7 @@ export function useCloudJournal(initial: Journal, repository?: HabitRepository) 
     if (repository) queue.add(`affirmation:${day}`, () => repository.writeAffirmation(day, body.trim()), 650)
   }
 
-  return { journal, setJournal, sync, retry: queue.flush, createHabit, createHabits, deleteHabit, updateHabit, writeLog, writeAffirmation }
+  return { journal, setJournal, sync, retry: queue.flush, createHabit, createHabits, deleteHabit, updateArchive, writeLog, writeAffirmation }
 }
 
 export type CloudJournal = ReturnType<typeof useCloudJournal>

@@ -47,7 +47,7 @@ async function mockSupabase(route) {
   const [service, , table, rpc] = endpoint.pathname.slice(1).split('/')
   const headers = {
     'access-control-allow-origin': '*',
-    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+    'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'access-control-allow-headers': '*',
   }
   const send = (json, status = 200) => route.fulfill(json === undefined ? { status, headers } : { status, headers, json })
@@ -117,6 +117,10 @@ async function mockSupabase(route) {
   }
   assert.equal(endpoint.searchParams.get('user_id'), `eq.${user.id}`)
   const match = (row) => [...endpoint.searchParams].every(([field, filter]) => !filter.startsWith('eq.') || filter.slice(3) === row[field])
+  if (method === 'PATCH') {
+    for (const [key, row] of tables[table]) if (match(row)) tables[table].set(key, { ...row, ...request.postDataJSON() })
+    return send(undefined, 204)
+  }
   if (method === 'DELETE') {
     for (const [key, row] of tables[table]) if (match(row)) tables[table].delete(key)
     return send(undefined, 204)
@@ -344,6 +348,33 @@ try {
   await page.reload()
   await page.getByLabel('Reflection for Drink water').click()
   assert.equal(await page.getByRole('textbox', { name: 'Daily note', exact: true }).inputValue(), '=Better, "one sip at a time"')
+  await navigate('Calendar')
+  const priorDay = page.locator('[data-date="2026-11-18"]')
+  const priorCounts = await priorDay.getAttribute('aria-label')
+  await navigate('Habits')
+  await page.getByRole('button', { name: 'Archive Evening journal', exact: true }).click()
+  await synced()
+  await page.getByRole('button', { name: 'Archived', exact: true }).click()
+  await page.getByRole('button', { name: 'Restore Evening journal', exact: true }).waitFor()
+  await navigate('Calendar')
+  assert.equal(await priorDay.getAttribute('aria-label'), priorCounts)
+  await page.clock.setFixedTime(new Date('2026-11-22T09:30:00+08:00'))
+  await page.reload()
+  await synced()
+  await navigate('Calendar')
+  const pausedDay = page.locator('[data-date="2026-11-21"]')
+  const pausedCounts = await pausedDay.getAttribute('aria-label')
+  await navigate('Habits')
+  await page.getByRole('button', { name: 'Archived', exact: true }).click()
+  await page.getByRole('button', { name: 'Restore Evening journal', exact: true }).click()
+  await synced()
+  const restored = [...tables.habits.values()].find((habit) => habit.name === 'Evening journal')
+  assert.deepEqual(restored.archive_periods, [{ start: '2026-11-20', end: '2026-11-22' }])
+  await navigate('Today')
+  await page.getByRole('button', { name: 'Complete Evening journal', exact: true }).waitFor()
+  await navigate('Calendar')
+  assert.equal(await pausedDay.getAttribute('aria-label'), pausedCounts)
+  console.log('PASS archive and restore across reloads without rewriting calendar history')
   assert.deepEqual(errors, [])
   console.log('PASS mobile layout, reminders, file import, guest templates, keyboard check-ins, reflections, exports, and OAuth guest merge')
 } finally {

@@ -46,6 +46,39 @@ export interface TrackedHabit extends HabitInput {
   createdOn: string
   archived: boolean
   archived_at?: string
+  archivePeriods?: ArchivePeriod[]
+}
+
+export interface ArchivePeriod {
+  start: string | null
+  end: string | null
+}
+
+const emptyArchive: readonly ArchivePeriod[] = []
+
+export function archiveHistory(habit: TrackedHabit): readonly ArchivePeriod[] {
+  if (habit.archivePeriods?.length) return habit.archivePeriods
+  return habit.archived ? [{ start: habit.archived_at?.slice(0, 10) ?? null, end: null }] : emptyArchive
+}
+
+export function changeArchive(habit: TrackedHabit, archived: boolean, day: string): ArchivePeriod[] {
+  const periods = [...archiveHistory(habit)]
+  const last = periods.at(-1)
+  if (archived === habit.archived) return periods
+
+  if (archived) {
+    if (last?.end && day <= last.end) periods[periods.length - 1] = { ...last, end: null }
+    else periods.push({ start: day, end: null })
+  } else if (last && !last.end) {
+    if (last.start && day <= last.start) periods.pop()
+    else periods[periods.length - 1] = { ...last, end: day }
+  }
+  return periods
+}
+
+export function isActiveOn(habit: TrackedHabit, key: string) {
+  return key >= habit.createdOn && !archiveHistory(habit).some(({ start, end }) =>
+    (!start || key >= start) && (!end || key < end))
 }
 
 export interface HabitLog {
@@ -89,11 +122,10 @@ export function focusQueue(habits: TrackedHabit[], journal: Journal, today: Date
   const week = startOfWeekMonday(today)
   const daysRemaining = 7 - differenceInCalendarDays(today, week)
   return habits.map((habit) => {
-    const archivedAtKey = habit.archived_at ? toKey(new Date(habit.archived_at)) : null
     const logs = journal.logs[habit.id] ?? {}
     const log = logs[key]
-    if ((archivedAtKey && key < archivedAtKey) || log?.frozen) return { habit, score: 4 }
-    if (!log?.frozen && isComplete(habit, log)) return { habit, score: 3 }
+    if (log?.frozen) return { habit, score: 4 }
+    if (isComplete(habit, log)) return { habit, score: 3 }
     if (log?.value) return { habit, score: 0 }
     if (habit.schedule === 'weekly') {
       const { target, done } = weekProgress(habit, logs, week, key)
@@ -104,31 +136,32 @@ export function focusQueue(habits: TrackedHabit[], journal: Journal, today: Date
 }
 
 export function isScheduled(habit: TrackedHabit, date: Date, key = toKey(date)) {
-  const archivedAtKey = habit.archived_at ? toKey(new Date(habit.archived_at)) : null
-  if (habit.archived || key < habit.createdOn || (archivedAtKey && key < archivedAtKey) || habit.schedule === 'weekly') return false
+  if (habit.schedule === 'weekly' || !isActiveOn(habit, key)) return false
   return habit.schedule === 'daily' || habit.weekdays.includes(date.getDay())
 }
 
 export function weekProgress(habit: TrackedHabit, logs: HabitLogs, week: Date, through: string) {
   const nextWeek = addWeeks(week, 1)
   const firstDay = habit.createdOn > toKey(week) ? fromKey(habit.createdOn) : week
-  const target = Math.max(0, Math.min(habit.weeklyTarget, differenceInCalendarDays(nextWeek, firstDay)))
+  let activeDays = 0
   let done = 0
   let frozen = 0
 
   for (let date = firstDay; date < nextWeek; date = addDays(date, 1)) {
     const key = toKey(date)
-    if (key > through) break
+    if (!isActiveOn(habit, key)) continue
+    activeDays++
+    if (key > through) continue
     const log = logs[key]
     if (isComplete(habit, log)) done++
     if (log?.frozen) frozen++
   }
-  return { target, done, frozen }
+  return { target: Math.min(habit.weeklyTarget, activeDays), done, frozen }
 }
 
 export function isOnToday(habit: TrackedHabit, logs: HabitLogs, today: Date) {
   const key = toKey(today)
-  if (habit.archived || key < habit.createdOn) return false
+  if (!isActiveOn(habit, key)) return false
   if (habit.schedule !== 'weekly') return isScheduled(habit, today, key)
   const { done, target } = weekProgress(habit, logs, startOfWeekMonday(today), key)
   return !!logs[key] || done < target
@@ -140,7 +173,7 @@ export function dayEntries(journal: Journal, date: Date, today: Date) {
   return journal.habits.flatMap((habit) => {
     const log = journal.logs[habit.id]?.[key]
     const scheduled = isScheduled(habit, date, key)
-    const openWeekly = habit.schedule === 'weekly' && key >= habit.createdOn && !habit.archived
+    const openWeekly = habit.schedule === 'weekly' && isActiveOn(habit, key)
     if (!log && !scheduled && !openWeekly) return []
     const done = isComplete(habit, log)
     return [{ habit, log, done, scheduled, unfinished: scheduled && !done && !log?.frozen }]
@@ -173,14 +206,11 @@ export function habitStats(habit: TrackedHabit, logs: HabitLogs, today: Date) {
   }
 
   const start = fromKey(habit.createdOn)
-  if (habit.archived) return { current, best, total, completed, opportunities, rate: 0 }
-  const archivedAtKey = habit.archived_at ? toKey(new Date(habit.archived_at)) : null
   if (habit.schedule === 'weekly' && start <= today) {
     const activeWeek = startOfWeekMonday(today)
-    const archivedDate = habit.archived_at ? fromKey(habit.archived_at) : null
-    const firstWeek = archivedDate ? startOfWeekMonday(archivedDate) : startOfWeekMonday(start)
-    for (let week = firstWeek; week <= activeWeek; week = addWeeks(week, 1)) {
+    for (let week = startOfWeekMonday(start); week <= activeWeek; week = addWeeks(week, 1)) {
       const { target, done, frozen } = weekProgress(habit, logs, week, todayKey)
+      if (!target) continue
       opportunities += target
       completed += Math.min(target, done)
       if (done >= target || (week < activeWeek && done > 0 && done + frozen >= target)) {
@@ -192,7 +222,7 @@ export function habitStats(habit: TrackedHabit, logs: HabitLogs, today: Date) {
   } else {
     for (let date = start; date <= today; date = addDays(date, 1)) {
       const key = toKey(date)
-      if ((archivedAtKey && key < archivedAtKey) || !isScheduled(habit, date, key)) continue
+      if (!isScheduled(habit, date, key)) continue
       const log = logs[key]
       opportunities++
       if (isComplete(habit, log)) {
