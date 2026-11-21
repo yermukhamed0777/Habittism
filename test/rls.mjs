@@ -8,7 +8,7 @@ const bob = '10000000-0000-4000-8000-000000000002'
 const guestId = '20000000-0000-4000-8000-000000000001'
 const day = '2026-11-20'
 const habit = {
-  id: guestId, name: 'Drink water', icon: 'target', color: 'mint', category: 'health',
+  id: guestId, name: 'Drink water', icon: 'target', color: 'cobalt', category: 'health',
   schedule_type: 'daily', weekdays: [], weekly_target: 7, kind: 'numeric', goal: 2,
   unit: 'liters', created_on: day, archived: false,
 }
@@ -54,6 +54,7 @@ try {
   await merge(guest)
   const savedHabit = (await db.query('select id, archive_periods from public.habits where guest_id = $1', [guestId])).rows[0]
   const aliceHabit = savedHabit.id
+  await assert.rejects(db.query("update public.habits set color='unknown' where id=$1", [aliceHabit]), { code: '23514' })
   assert.deepEqual(savedHabit.archive_periods, guest.habits[0].archive_periods)
   await assert.rejects(db.query("update public.habits set archive_periods='[null]' where id=$1", [aliceHabit]), { code: '23514' })
   const row = (await db.query('select value::float8, note, mood from public.habit_logs')).rows[0]

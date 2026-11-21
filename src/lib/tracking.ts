@@ -15,6 +15,17 @@ export const colors = {
   mint: '#548361',
   amber: '#a96931',
   rose: '#b46778',
+  violet: '#7958cf',
+  indigo: '#4d59ce',
+  cobalt: '#2e6cd6',
+  sky: '#3591c7',
+  cyan: '#159ba4',
+  emerald: '#2b9269',
+  lime: '#799a36',
+  gold: '#b58c26',
+  tangerine: '#c66b3d',
+  coral: '#cb5261',
+  magenta: '#ac518d',
 }
 
 export const weekdays = [
@@ -64,16 +75,17 @@ export function archiveHistory(habit: TrackedHabit): readonly ArchivePeriod[] {
 }
 
 export function changeArchive(habit: TrackedHabit, archived: boolean, day: string): ArchivePeriod[] {
+  const effectiveDay = day < habit.createdOn ? habit.createdOn : day
   const periods = [...archiveHistory(habit)]
   const last = periods.at(-1)
   if (archived === habit.archived) return periods
 
   if (archived) {
-    if (last?.end && day <= last.end) periods[periods.length - 1] = { ...last, end: null }
-    else periods.push({ start: day, end: null })
+    if (last?.end && effectiveDay <= last.end) periods[periods.length - 1] = { ...last, end: null }
+    else periods.push({ start: effectiveDay, end: null })
   } else if (last && !last.end) {
-    if (last.start && day <= last.start) periods.pop()
-    else periods[periods.length - 1] = { ...last, end: day }
+    if (last.start && effectiveDay <= last.start) periods.pop()
+    else periods[periods.length - 1] = { ...last, end: effectiveDay }
   }
   return periods
 }

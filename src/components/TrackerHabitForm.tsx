@@ -4,7 +4,24 @@ import { HABIT_ICON_MAP, ICON_CHOICES } from '../lib/icons'
 import { categories, colors, weekdays, type Accent, type Category, type HabitInput, type Schedule } from '../lib/tracking'
 import { JournalDialog } from './JournalDialog'
 
-const accentNames: Record<Accent, string> = { iris: 'Lilac', aqua: 'Teal', mint: 'Sage', amber: 'Ochre', rose: 'Rose' }
+const accentNames: Record<Accent, string> = {
+  iris: 'Lilac',
+  aqua: 'Teal',
+  mint: 'Sage',
+  amber: 'Ochre',
+  rose: 'Rose',
+  violet: 'Violet',
+  indigo: 'Indigo',
+  cobalt: 'Cobalt',
+  sky: 'Sky',
+  cyan: 'Cyan',
+  emerald: 'Emerald',
+  lime: 'Lime',
+  gold: 'Gold',
+  tangerine: 'Tangerine',
+  coral: 'Coral',
+  magenta: 'Magenta',
+}
 
 export function TrackerHabitForm({ onSave, onClose, habit }: {
   onSave: (habit: HabitInput) => void
@@ -121,12 +138,15 @@ export function TrackerHabitForm({ onSave, onClose, habit }: {
         <label className="field">Custom icon <input maxLength={32} placeholder="Paste an emoji" value={customIcon} onChange={(event) => setCustomIcon(event.target.value)} /></label>
         <fieldset className="choice-group">
           <legend>Accent color</legend>
-          <div className="chips">
-            {Object.entries(colors).map(([key, hex]) => (
-              <button key={key} type="button" className="color-choice" aria-label={accentNames[key as Accent]} aria-pressed={color === key}
-                onClick={() => setColor(key as Accent)} style={{ backgroundColor: hex }} />
+          <div className="color-grid">
+            {(Object.keys(colors) as Accent[]).map((accent) => (
+              <button key={accent} type="button" className="color-choice" aria-label={accentNames[accent]}
+                title={accentNames[accent]} aria-pressed={color === accent} onClick={() => setColor(accent)}>
+                <span style={{ backgroundColor: colors[accent] }}>{color === accent && <Check size={16} aria-hidden="true" />}</span>
+              </button>
             ))}
           </div>
+          <p className="color-caption" aria-live="polite">{accentNames[color]}</p>
         </fieldset>
         {error && <p className="error" role="alert">{error}</p>}
         <div className="dialog-actions"><button type="submit" className="primary">
