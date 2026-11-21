@@ -232,7 +232,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
         {imported && <div className="import-banner" role="status">Your backup was imported.<button className="text-button" type="button" onClick={() => setImported(false)}>Dismiss</button></div>}
         {showMerged && <div className="import-banner" role="status">Your guest journal was merged.<button className="text-button" type="button" onClick={() => setShowMerged(false)}>Dismiss</button></div>}
         {view === 'greeting' && <DailyGreeting {...habitView} name={session ? displayName(session) : ''} onToday={() => setView('today')} />}
-        {view === 'today' && <TodayView {...habitView} />}
+        {view === 'today' && <TodayView {...habitView} onSelectDay={(day) => setDialog({ kind: 'day', day })} />}
         {view === 'habits' && <HabitLibrary {...habitView} />}
         {view === 'calendar' && <TrackerCalendar journal={tracker.journal} today={today} onSelect={(day) => setDialog({ kind: 'day', day })} />}
         {view === 'insights' && <TrackerInsights journal={tracker.journal} today={today} onOpenHabit={openHabit} onSelectDay={(day) => setDialog({ kind: 'day', day })} />}

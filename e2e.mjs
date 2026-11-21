@@ -397,6 +397,12 @@ try {
   await page.goto(new URL('?view=today', url).href)
   await page.getByRole('heading', { name: 'Today’s Focus', exact: true }).waitFor()
   console.log('PASS keyboard command search and direct Today shortcut')
+  await page.getByRole('heading', { name: 'This week', exact: true }).waitFor()
+  await page.getByRole('progressbar', { name: 'Walk outside weekly target' }).waitFor()
+  await page.getByRole('button', { name: /Friday, November 20, 2026, / }).click()
+  await page.getByRole('heading', { name: 'Friday, November 20, 2026', exact: true }).waitFor()
+  await close()
+  console.log('PASS weekly outlook, flexible targets and calendar drill-down')
   assert.deepEqual(errors, [])
   console.log('PASS mobile layout, reminders, file import, guest templates, keyboard check-ins, reflections, exports, and OAuth guest merge')
 } finally {

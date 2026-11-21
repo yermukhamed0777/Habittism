@@ -5,6 +5,7 @@ import { fromKey, startOfWeekMonday, toKey } from '../lib/dates'
 import { categoryLabel, focusQueue, formatDay, isComplete, scheduleLabel, weekProgress, type TrackedHabit } from '../lib/tracking'
 import type { CloudJournal } from '../store/useCloudJournal'
 import { EntryControl, EntryIcon, EntryReflection } from './HabitEntry'
+import { WeeklyReview } from './WeeklyReview'
 
 const dateLabel = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
@@ -93,7 +94,10 @@ export function DailyGreeting({ tracker, today, name, due, onToday, onAdd, onOpe
   )
 }
 
-export function TodayView({ tracker, today, due, onAdd, onOpenHabit, onTemplates }: HabitViewProps & { due: TrackedHabit[] }) {
+export function TodayView({ tracker, today, due, onAdd, onOpenHabit, onTemplates, onSelectDay }: HabitViewProps & {
+  due: TrackedHabit[]
+  onSelectDay: (key: string) => void
+}) {
   return (
     <>
       <div className="page-heading"><h1>Today</h1><p>{formatDay(today)}</p></div>
@@ -101,6 +105,7 @@ export function TodayView({ tracker, today, due, onAdd, onOpenHabit, onTemplates
         <TodayList tracker={tracker} today={today} due={due} onAdd={onAdd} onOpenHabit={onOpenHabit} onTemplates={onTemplates} focus />
         <AffirmationEditor tracker={tracker} today={today} />
       </div>
+      {!!tracker.journal.habits.length && <WeeklyReview journal={tracker.journal} today={today} onSelectDay={onSelectDay} />}
     </>
   )
 }

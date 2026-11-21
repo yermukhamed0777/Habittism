@@ -245,6 +245,16 @@ progress::-moz-progress-bar { background: var(--action); }
 .install-detail ul { padding: 0; list-style: none; display: grid; gap: .65rem; }
 .install-detail li { display: flex; align-items: start; gap: .65rem; }
 .install-detail strong { color: var(--ink); }
+.week-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); list-style: none; gap: clamp(.2rem, 1vw, .7rem); margin: 0; padding: 0; }
+.week-days button { display: grid; width: 100%; justify-items: center; gap: .35rem; padding: .65rem .15rem; background: var(--field); border: 1px solid var(--line); border-radius: .65rem; }
+.week-days button[aria-current], .week-days button:hover:not(:disabled) { background: var(--soft); color: var(--soft-ink); }
+.week-days small, .week-days span { font-size: clamp(.62rem, 2vw, .79rem); color: var(--muted); }
+.week-days strong { font-size: clamp(1rem, 3vw, 1.5rem); }
+.weekly-targets { padding-top: .9rem; }
+.weekly-targets h3 { font-size: .85rem; color: var(--muted); }
+.weekly-targets ul { list-style: none; padding: 0; }
+.weekly-targets li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(3rem, 1fr) auto; gap: .7rem; align-items: center; margin-top: .52rem; font-size: .84rem; }
+.weekly-targets span { overflow-wrap: anywhere; }
 .entry-reflection { flex: 1 0 100%; width: 100%; font-size: .85rem; color: var(--muted); }
 .entry-reflection summary { width: fit-content; cursor: pointer; padding: .35rem 0; color: var(--soft-ink); font-weight: 650; }
 .reflection-actions { margin-bottom: .15rem; }
