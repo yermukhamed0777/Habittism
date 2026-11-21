@@ -20,8 +20,13 @@ export function CommandMenu({ commands, onClose }: { commands: WorkspaceCommand[
   const options = commands.filter(({ label, detail }) => `${label} ${detail}`.toLocaleLowerCase().includes(query))
   const selected = Math.min(position, options.length - 1)
 
-  useEffect(() => input.current?.focus(), [])
-  useEffect(() => selectedItem.current?.scrollIntoView({ block: 'nearest' }), [selected])
+  useEffect(() => {
+    input.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    selectedItem.current?.scrollIntoView({ block: 'nearest' })
+  }, [selected])
 
   function run(command: WorkspaceCommand) {
     onClose()
