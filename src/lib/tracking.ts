@@ -41,6 +41,8 @@ export interface HabitInput {
   unit: string
 }
 
+export type HabitDetails = Pick<HabitInput, 'name' | 'icon' | 'color' | 'category' | 'customCategory'>
+
 export interface TrackedHabit extends HabitInput {
   id: string
   createdOn: string

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { saveGuestJournal } from '../lib/guestJournal'
 import type { HabitRepository } from '../lib/habitRepository'
-import { changeArchive, type HabitInput, type HabitLog, type Journal, type TrackedHabit } from '../lib/tracking'
+import { changeArchive, type HabitDetails, type HabitInput, type HabitLog, type Journal, type TrackedHabit } from '../lib/tracking'
 
 type Write = { send: () => Promise<unknown>; readyAt: number }
 
@@ -95,6 +95,16 @@ export function useCloudJournal(initial: Journal, repository?: HabitRepository) 
     if (repository) queue.add(`archive:${habit.id}`, () => repository.updateArchive(habit.id, archived, archivePeriods))
   }
 
+  function updateDetails(id: string, details: HabitDetails) {
+    const { name, icon, color, category, customCategory } = details
+    const patch = { name, icon, color, category, customCategory }
+    setJournal((previous) => ({
+      ...previous,
+      habits: previous.habits.map((habit) => habit.id === id ? { ...habit, ...patch } : habit),
+    }))
+    if (repository) queue.add(`details:${id}`, () => repository.updateDetails(id, patch))
+  }
+
   function writeLog(id: string, day: string, log: HabitLog | null) {
     setJournal((previous) => {
       const habitLogs = { ...previous.logs[id] }
@@ -110,7 +120,7 @@ export function useCloudJournal(initial: Journal, repository?: HabitRepository) 
     if (repository) queue.add(`affirmation:${day}`, () => repository.writeAffirmation(day, body.trim()), 650)
   }
 
-  return { journal, setJournal, sync, retry: queue.flush, createHabit, createHabits, deleteHabit, updateArchive, writeLog, writeAffirmation }
+  return { journal, setJournal, sync, retry: queue.flush, createHabit, createHabits, deleteHabit, updateArchive, updateDetails, writeLog, writeAffirmation }
 }
 
 export type CloudJournal = ReturnType<typeof useCloudJournal>

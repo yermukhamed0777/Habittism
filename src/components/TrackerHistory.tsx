@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { addDays, addMonths, endOfMonth, format, startOfMonth } from 'date-fns'
-import { ChevronLeft, ChevronRight, Snowflake, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PenLine, Snowflake, Trash2 } from 'lucide-react'
 import { fromKey, startOfWeekMonday, toKey } from '../lib/dates'
 import { formatDay, habitStats, isActiveOn, isComplete, isScheduled, scheduleLabel, updateProgress, weekdays, type HabitLog, type TrackedHabit } from '../lib/tracking'
 import type { CloudJournal } from '../store/useCloudJournal'
 import { EntryControl, EntryIcon, EntryReflection } from './HabitEntry'
 import { JournalDialog } from './JournalDialog'
 
-export function TrackerHistory({ tracker, habit, today, initialDay, onClose }: {
+export function TrackerHistory({ tracker, habit, today, initialDay, onClose, onEdit }: {
   tracker: CloudJournal
   habit: TrackedHabit
   today: Date
   initialDay?: string
   onClose: () => void
+  onEdit: () => void
 }) {
   const [selected, setSelected] = useState(initialDay ?? toKey(today))
   const [month, setMonth] = useState(() => startOfMonth(initialDay ? fromKey(initialDay) : today))
@@ -106,6 +107,7 @@ export function TrackerHistory({ tracker, habit, today, initialDay, onClose }: {
         ? 'Frozen days protect streaks and stay out of completed totals.'
         : 'Select a date to toggle its check-in.'}</p>
       <div className="dialog-actions">
+        <button className="secondary" type="button" onClick={onEdit}><PenLine size={16} /> Edit details</button>
         <button className="danger-button" type="button" onClick={() => {
           if (window.confirm(`Delete “${habit.name}” and its check-in history?`)) {
             tracker.deleteHabit(habit.id)

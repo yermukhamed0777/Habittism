@@ -31,7 +31,8 @@ const navigation = [
 ] as const
 
 type View = (typeof navigation)[number]['id']
-type Dialog = { kind: 'create' | 'settings' | 'import' | 'importing' | 'templates' } | { kind: 'day'; day: string } | { kind: 'habit'; id: string; day?: string }
+type Dialog = { kind: 'create' | 'settings' | 'import' | 'importing' | 'templates' } | { kind: 'day'; day: string }
+  | { kind: 'habit'; id: string; day?: string } | { kind: 'edit'; id: string }
 type Account = { client: SupabaseClient; session: Session }
 
 function displayName(session: Session) {
@@ -112,7 +113,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
     return !log?.frozen && !isComplete(habit, log)
   }).length
   const reminder = useReminder(userId ?? 'guest', outstanding)
-  const selectedHabit = dialog?.kind === 'habit' && tracker.journal.habits.find((habit) => habit.id === dialog.id)
+  const selectedHabit = (dialog?.kind === 'habit' || dialog?.kind === 'edit') && tracker.journal.habits.find((habit) => habit.id === dialog.id)
   const close = () => setDialog(null)
   const openHabit = (id: string, day?: string) => setDialog({ kind: 'habit', id, day })
   const onAdd = () => setDialog({ kind: 'create' })
@@ -199,10 +200,12 @@ function Dashboard({ account, initial, openAccount, merged }: {
         {view === 'calendar' && <TrackerCalendar journal={tracker.journal} today={today} onSelect={(day) => setDialog({ kind: 'day', day })} />}
         {view === 'insights' && <TrackerInsights journal={tracker.journal} today={today} onOpenHabit={openHabit} onSelectDay={(day) => setDialog({ kind: 'day', day })} />}
       </main>
-      {dialog?.kind === 'create' && <TrackerHabitForm onClose={close} onCreate={(habit) => tracker.createHabit(habit, toKey(today))} />}
+      {dialog?.kind === 'create' && <TrackerHabitForm onClose={close} onSave={(habit) => tracker.createHabit(habit, todayKey)} />}
+      {dialog?.kind === 'edit' && selectedHabit && <TrackerHabitForm habit={selectedHabit} onClose={close}
+        onSave={(habit) => tracker.updateDetails(selectedHabit.id, habit)} />}
       {dialog?.kind === 'templates' && <StarterPacks onClose={close} onAdd={(habits) => tracker.createHabits(habits, todayKey)} />}
       {dialog?.kind === 'habit' && selectedHabit && <TrackerHistory key={selectedHabit.id} tracker={tracker} today={today}
-        habit={selectedHabit} initialDay={dialog.day} onClose={close} />}
+        habit={selectedHabit} initialDay={dialog.day} onClose={close} onEdit={() => setDialog({ kind: 'edit', id: selectedHabit.id })} />}
       {dialog?.kind === 'day' && <TrackerDay tracker={tracker} day={dialog.day} today={today} onClose={close}
         onOpenHabit={openHabit} entries={(date) => dayEntries(tracker.journal, date, today)} />}
       {dialog?.kind === 'import' && <LegacyImport browserBackup={browserBackup} today={toKey(today)} email={session?.user.email} onImport={importBackup} onClose={close} />}

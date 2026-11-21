@@ -1,14 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { LegacyJournal } from './legacyJournal'
-import { archiveHistory, type ArchivePeriod, type HabitInput, type HabitLog, type Journal, type TrackedHabit } from './tracking'
+import { archiveHistory, type ArchivePeriod, type HabitDetails, type HabitInput, type HabitLog, type Journal, type TrackedHabit } from './tracking'
 
-export function habitFields(habit: HabitInput) {
+function detailFields(habit: HabitDetails) {
   return {
     name: habit.name,
     icon: habit.icon,
     color: habit.color,
     category: habit.category,
     custom_category: habit.customCategory,
+  }
+}
+
+export function habitFields(habit: HabitInput) {
+  return {
+    ...detailFields(habit),
     schedule_type: habit.schedule,
     weekdays: habit.weekdays,
     weekly_target: habit.weeklyTarget,
@@ -107,6 +113,10 @@ export function habitRepository(client: SupabaseClient, userId: string) {
       return checked(client.from('habits').update({
         archived, archive_periods: periods, archived_at: start ? `${start}T00:00:00Z` : null,
       }).eq('user_id', userId).eq('id', id))
+    },
+
+    updateDetails(id: string, details: HabitDetails) {
+      return checked(client.from('habits').update(detailFields(details)).eq('user_id', userId).eq('id', id))
     },
 
     writeLog(id: string, day: string, log: HabitLog | null) {
