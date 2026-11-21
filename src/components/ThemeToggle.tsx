@@ -16,7 +16,7 @@ export function ThemeToggle() {
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#1c231e' : '#f5f4ed')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0c1127' : '#e9eefb')
   }, [theme])
 
   const next = theme === 'dark' ? 'light' : 'dark'

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useState, type CSSProperties } from 'react'
 import { Archive, ArchiveRestore, ArrowRight, CalendarDays, Feather, Leaf, Plus, Search, Snowflake } from 'lucide-react'
 import { AFFIRMATION_PROMPTS, greetingFor, pickPrompt } from '../lib/affirmations'
 import { fromKey, startOfWeekMonday, toKey } from '../lib/dates'
@@ -68,6 +68,9 @@ export function DailyGreeting({ tracker, today, name, due, onToday, onAdd, onOpe
   onToday: () => void
 }) {
   const [greeting, setGreeting] = useState(() => greetingFor(new Date()))
+  const key = toKey(today)
+  const complete = due.filter((habit) => isComplete(habit, tracker.journal.logs[habit.id]?.[key])).length
+  const progress = due.length ? Math.round(100 * complete / due.length) : 0
 
   useEffect(() => {
     const update = () => setGreeting(greetingFor(new Date()))
@@ -82,9 +85,20 @@ export function DailyGreeting({ tracker, today, name, due, onToday, onAdd, onOpe
   return (
     <>
       <section className="greeting-hero">
-        <time dateTime={toKey(today)}><CalendarDays size={17} /> {dateLabel(today)}</time>
-        <h1>{greeting}{name ? `, ${name}` : ''}.</h1>
-        <button type="button" className="hero-button" onClick={onToday}>Open Today <ArrowRight size={17} /></button>
+        <div className="hero-copy">
+          <time dateTime={key}><CalendarDays size={15} /> {dateLabel(today)}</time>
+          <h1>{greeting}{name ? `, ${name}` : ''}.</h1>
+          <button type="button" className="hero-button" onClick={onToday}>Open Today <ArrowRight size={17} /></button>
+        </div>
+        <div className="hero-gauge" role="group" aria-label="Today’s progress">
+          <div className="gauge-ring" style={{ '--progress': `${progress}%` } as CSSProperties}>
+            <div className="gauge-center">
+              <span>Today’s progress</span>
+              <strong>{due.length ? `${progress}%` : '—'}</strong>
+              <small>{due.length ? `${complete}/${due.length} complete` : 'No habits due'}</small>
+            </div>
+          </div>
+        </div>
       </section>
       <div className="dashboard-columns">
         <AffirmationEditor tracker={tracker} today={today} showHistory />

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
-import { ArrowRight, GitFork, Leaf } from 'lucide-react'
+import { ArrowRight, GitFork } from 'lucide-react'
 import { authRedirect, callbackError, supabase } from '../lib/supabase'
 import { ThemeToggle } from './ThemeToggle'
 import './auth.css'
@@ -20,7 +20,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="auth-shell">
       <div className="auth-card">
-        <div className="auth-top"><div className="auth-brand"><Leaf size={19} aria-hidden="true" /> Habittism</div><ThemeToggle /></div>
+        <div className="auth-top"><div className="auth-brand">
+          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={34} height={34} /> Habittism
+        </div><ThemeToggle /></div>
         {children}
       </div>
     </main>

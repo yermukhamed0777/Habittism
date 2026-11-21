@@ -143,7 +143,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message))
   const shots = process.env.HABITTISM_TEST_SCREENSHOTS
   if (shots) await mkdir(shots, { recursive: true })
-  const screenshot = async (name) => { if (shots) await page.screenshot({ path: join(shots, `${name}.png`), fullPage: true }) }
+  const screenshot = async (name) => { if (shots) await page.screenshot({ path: join(shots, `${name}.png`), fullPage: true, animations: 'disabled' }) }
 
   await page.goto(url)
   await page.getByText('Create your first habit to start tracking.').waitFor()
@@ -162,6 +162,11 @@ try {
   await page.getByText('Create your first habit to start tracking.').waitFor()
   assert.equal(tables.habits.size, 0)
   await screenshot('greeting-light')
+  if (shots) {
+    await page.getByRole('button', { name: 'Switch to dark mode' }).click()
+    await screenshot('greeting-dark')
+    await page.getByRole('button', { name: 'Switch to light mode' }).click()
+  }
   console.log('PASS email/magic-link screens and blank onboarding')
 
   const navigate = (name) => page.getByRole('navigation').getByRole('button', { name, exact: true }).click()

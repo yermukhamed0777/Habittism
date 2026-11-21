@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
-import { CalendarDays, ChartNoAxesColumnIncreasing, Download, House, Leaf, ListChecks, Plus, Search, Settings, Sun, Target } from 'lucide-react'
+import { CalendarDays, ChartNoAxesColumnIncreasing, Download, House, ListChecks, Plus, Search, Settings, Sun, Target } from 'lucide-react'
 import { AuthShell } from './components/AuthGate'
 import { JournalDialog } from './components/JournalDialog'
 import { CommandMenu, type WorkspaceCommand } from './components/CommandMenu'
@@ -129,6 +129,11 @@ function Dashboard({ account, initial, openAccount, merged }: {
   const onInstall = () => setDialog({ kind: 'install' })
   const habitView = { tracker, today, due, onAdd, onOpenHabit: openHabit, onTemplates: () => setDialog({ kind: 'templates' }) }
 
+  function openView(next: View) {
+    setView(next)
+    window.scrollTo(0, 0)
+  }
+
   useEffect(() => {
     function openCommands(event: KeyboardEvent) {
       if ((!event.ctrlKey && !event.metaKey) || event.key.toLowerCase() !== 'k' || event.repeat) return
@@ -141,7 +146,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
   }, [dialog])
 
   const commands: WorkspaceCommand[] = dialog?.kind === 'commands' ? [
-    ...navigation.map(({ id, label, icon }) => ({ id, label, icon, detail: 'Page', run: () => setView(id) })),
+    ...navigation.map(({ id, label, icon }) => ({ id, label, icon, detail: 'Page', run: () => openView(id) })),
     { id: 'new', label: 'New habit', detail: 'Action', icon: Plus, run: onAdd },
     { id: 'settings', label: 'Settings', detail: 'Action', icon: Settings, run: () => setDialog({ kind: 'settings' }) },
     { id: 'install', label: 'Install Habittism', detail: 'Action', icon: Download, run: onInstall },
@@ -194,10 +199,12 @@ function Dashboard({ account, initial, openAccount, merged }: {
     <div className="workspace">
       <header className="site-header">
         <div className="header-inner">
-          <button className="brand" type="button" onClick={() => setView('greeting')}><span><Leaf size={20} /></span> Habittism</button>
+          <button className="brand" type="button" onClick={() => openView('greeting')}>
+            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={37} height={37} /> Habittism
+          </button>
           <nav className="main-nav" aria-label="Workspace">
             {navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-current={view === id ? 'page' : undefined}
-              onClick={() => setView(id)}><Icon size={16} /> {label}</button>)}
+              onClick={() => openView(id)}><Icon size={16} /> {label}</button>)}
           </nav>
           <div className="header-actions">
             <button className="icon-button" type="button" aria-label="Command menu" aria-keyshortcuts="Control+K Meta+K"
@@ -212,7 +219,9 @@ function Dashboard({ account, initial, openAccount, merged }: {
         {tracker.sync.error ? (
           <div className="sync-banner" role="alert"><span>Changes are waiting to sync. {tracker.sync.error}</span>
             <button type="button" className="secondary" onClick={() => void tracker.retry()}>Retry sync</button></div>
-        ) : <div className="sync-status" role="status">{tracker.sync.pending ? 'Saving changes…' : account ? 'All changes synced' : 'Guest journal'}</div>}
+        ) : <div className="sync-status" data-pending={!!tracker.sync.pending} role="status">
+          {tracker.sync.pending ? 'Saving changes…' : account ? 'All changes synced' : 'Guest journal'}
+        </div>}
         {!account && <section className="import-banner">
           <div><strong>Try Habittism as a guest</strong><p>Sign in or create an account to sync this journal across devices.</p></div>
           <div className="chips">
@@ -231,7 +240,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
         </section>}
         {imported && <div className="import-banner" role="status">Your backup was imported.<button className="text-button" type="button" onClick={() => setImported(false)}>Dismiss</button></div>}
         {showMerged && <div className="import-banner" role="status">Your guest journal was merged.<button className="text-button" type="button" onClick={() => setShowMerged(false)}>Dismiss</button></div>}
-        {view === 'greeting' && <DailyGreeting {...habitView} name={session ? displayName(session) : ''} onToday={() => setView('today')} />}
+        {view === 'greeting' && <DailyGreeting {...habitView} name={session ? displayName(session) : ''} onToday={() => openView('today')} />}
         {view === 'today' && <TodayView {...habitView} onSelectDay={(day) => setDialog({ kind: 'day', day })} />}
         {view === 'habits' && <HabitLibrary {...habitView} />}
         {view === 'calendar' && <TrackerCalendar journal={tracker.journal} today={today} onSelect={(day) => setDialog({ kind: 'day', day })} />}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { addDays, addYears, format } from 'date-fns'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { buildCalendarWeeks, fromKey, monthLabelsFor, toKey } from '../lib/dates'
@@ -112,11 +113,11 @@ export function TrackerCalendar({ journal, today, onSelect, consistency = false 
           </div>
         </div>
         <div className="heat-legend"><span>Less complete</span>{[0, 1, 2, 3, 4].map((level) => <i className={`heat-cell heat-${level}`} key={level} aria-hidden="true" />)}<span>More complete</span></div>
-        {hover && info && <div className="heat-tooltip" role="tooltip" style={{ left: hover.x, top: hover.y }}>
+        {hover && info && createPortal(<div className="heat-tooltip" role="tooltip" style={{ left: hover.x, top: hover.y }}>
           <strong>{format(fromKey(hover.key), 'EEE, MMM d, yyyy')}</strong>
           <span>{info.done} completed · {info.unfinished} unfinished</span>
           {!!info.frozen && <span>{info.frozen} frozen</span>}
-        </div>}
+        </div>, document.body)}
       </section>
     </>
   )
