@@ -117,6 +117,11 @@ try {
   assert.equal(await count('habits'), 1)
   assert.equal(await count('habit_logs'), 1)
   assert.notEqual((await db.query('select id from public.habits')).rows[0].id, aliceHabit)
+  await importModern(modernBackup)
+  assert.equal(await count('habits'), 2)
+  await login(alice)
+  const aliceHabitAfterBob = (await db.query('select name from public.habits where id=$1', [aliceHabit])).rows[0]
+  assert.equal(aliceHabitAfterBob.name, 'Drink water')
 
   await db.exec('set role anon')
   await assert.rejects(db.query('select note from public.habit_logs'), { code: '42501' })
