@@ -10,6 +10,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:e2e": "node e2e.mjs",
+    "test:pwa": "node test/pwa.mjs",
     "test:rls": "node test/rls.mjs"
   },
   "dependencies": {

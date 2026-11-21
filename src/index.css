@@ -241,6 +241,10 @@ progress::-moz-progress-bar { background: var(--action); }
 .command-list small { color: var(--muted); font-size: .72rem; }
 .command-hints { color: var(--muted); display: flex; flex-wrap: wrap; gap: .7rem; font-size: .75rem; margin-top: .8rem; }
 .command-hints kbd { padding: .1rem .24rem; border: 1px solid var(--line); border-radius: .22rem; }
+.install-detail { display: grid; gap: .85rem; justify-items: start; color: var(--muted); }
+.install-detail ul { padding: 0; list-style: none; display: grid; gap: .65rem; }
+.install-detail li { display: flex; align-items: start; gap: .65rem; }
+.install-detail strong { color: var(--ink); }
 .entry-reflection { flex: 1 0 100%; width: 100%; font-size: .85rem; color: var(--muted); }
 .entry-reflection summary { width: fit-content; cursor: pointer; padding: .35rem 0; color: var(--soft-ink); font-weight: 650; }
 .reflection-actions { margin-bottom: .15rem; }

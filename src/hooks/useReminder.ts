@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toKey } from '../lib/dates'
+import { registerAppWorker } from '../lib/installApp'
 
 interface Preference {
   enabled: boolean
@@ -27,8 +28,7 @@ async function notify(outstanding: number) {
 
   if ('serviceWorker' in navigator) {
     try {
-      const url = new URL(`${import.meta.env.BASE_URL}reminder-worker.js`, window.location.origin)
-      await navigator.serviceWorker.register(url)
+      await registerAppWorker()
       const worker = await navigator.serviceWorker.ready
       await worker.showNotification(title, options)
       return

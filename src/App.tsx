@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
-import { CalendarDays, ChartNoAxesColumnIncreasing, House, Leaf, ListChecks, Plus, Search, Settings, Sun, Target } from 'lucide-react'
+import { CalendarDays, ChartNoAxesColumnIncreasing, Download, House, Leaf, ListChecks, Plus, Search, Settings, Sun, Target } from 'lucide-react'
 import { AuthShell } from './components/AuthGate'
 import { JournalDialog } from './components/JournalDialog'
 import { CommandMenu, type WorkspaceCommand } from './components/CommandMenu'
+import { InstallApp } from './components/InstallApp'
 import { LegacyImport } from './components/LegacyImport'
 import { ReminderSettings } from './components/ReminderSettings'
 import { StarterPacks } from './components/StarterPacks'
@@ -19,6 +20,7 @@ import { toKey } from './lib/dates'
 import { habitRepository, type HabitRepository } from './lib/habitRepository'
 import { claimGuestJournal, loadGuestJournal } from './lib/guestJournal'
 import { downloadJournal } from './lib/journalExport'
+import { useInstallState } from './lib/installApp'
 import { browserBackupImported, markBrowserBackupImported, readBrowserBackup, type LegacyJournal } from './lib/legacyJournal'
 import { dayEntries, isComplete, isOnToday, type Journal } from './lib/tracking'
 import { useCloudJournal } from './store/useCloudJournal'
@@ -32,7 +34,7 @@ const navigation = [
 ] as const
 
 type View = (typeof navigation)[number]['id']
-type Dialog = { kind: 'create' | 'settings' | 'import' | 'importing' | 'templates' | 'commands' } | { kind: 'day'; day: string }
+type Dialog = { kind: 'create' | 'settings' | 'import' | 'importing' | 'templates' | 'commands' | 'install' } | { kind: 'day'; day: string }
   | { kind: 'habit'; id: string; day?: string } | { kind: 'edit'; id: string }
 type Account = { client: SupabaseClient; session: Session }
 
@@ -102,6 +104,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
   const { client, session, repository } = account ?? {}
   const userId = session?.user.id
   const tracker = useCloudJournal(initial, repository)
+  const installState = useInstallState()
   const [view, setView] = useState(initialView)
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [accountError, setAccountError] = useState('')
@@ -123,6 +126,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
   const close = () => setDialog(null)
   const openHabit = (id: string, day?: string) => setDialog({ kind: 'habit', id, day })
   const onAdd = () => setDialog({ kind: 'create' })
+  const onInstall = () => setDialog({ kind: 'install' })
   const habitView = { tracker, today, due, onAdd, onOpenHabit: openHabit, onTemplates: () => setDialog({ kind: 'templates' }) }
 
   useEffect(() => {
@@ -140,6 +144,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
     ...navigation.map(({ id, label, icon }) => ({ id, label, icon, detail: 'Page', run: () => setView(id) })),
     { id: 'new', label: 'New habit', detail: 'Action', icon: Plus, run: onAdd },
     { id: 'settings', label: 'Settings', detail: 'Action', icon: Settings, run: () => setDialog({ kind: 'settings' }) },
+    { id: 'install', label: 'Install Habittism', detail: 'Action', icon: Download, run: onInstall },
     ...tracker.journal.habits.map((habit) => ({
       id: habit.id, label: habit.name, icon: Target, detail: habit.archived ? 'Archived habit' : 'Habit',
       run: () => openHabit(habit.id),
@@ -210,7 +215,10 @@ function Dashboard({ account, initial, openAccount, merged }: {
         ) : <div className="sync-status" role="status">{tracker.sync.pending ? 'Saving changes…' : account ? 'All changes synced' : 'Guest journal'}</div>}
         {!account && <section className="import-banner">
           <div><strong>Try Habittism as a guest</strong><p>Sign in or create an account to sync this journal across devices.</p></div>
-          <button className="primary" type="button" onClick={openAccount}>Sign in or sign up</button>
+          <div className="chips">
+            {installState !== 'installed' && <button className="secondary" type="button" onClick={onInstall}><Download size={16} /> Install app</button>}
+            <button className="primary" type="button" onClick={openAccount}>Sign in or sign up</button>
+          </div>
         </section>}
         {browserBackup && showImport && <section className="import-banner">
           <div><strong>Import your saved habits and affirmations</strong><p>Move this browser’s previous Habittism data into {session?.user.email ?? 'your account'}.</p>
@@ -231,6 +239,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
       </main>
       {dialog?.kind === 'create' && <TrackerHabitForm onClose={close} onSave={(habit) => tracker.createHabit(habit, todayKey)} />}
       {dialog?.kind === 'commands' && <CommandMenu commands={commands} onClose={close} />}
+      {dialog?.kind === 'install' && <InstallApp onClose={close} />}
       {dialog?.kind === 'edit' && selectedHabit && <TrackerHabitForm habit={selectedHabit} onClose={close}
         onSave={(habit) => tracker.updateDetails(selectedHabit.id, habit)} />}
       {dialog?.kind === 'templates' && <StarterPacks onClose={close} onAdd={(habits) => tracker.createHabits(habits, todayKey)} />}
@@ -243,6 +252,9 @@ function Dashboard({ account, initial, openAccount, merged }: {
       {dialog?.kind === 'settings' && <JournalDialog title="Settings" subtitle={session?.user.email} onClose={close}>
         {accountError && <p className="error" role="alert">{accountError}</p>}
         <ReminderSettings reminder={reminder} />
+        {installState !== 'installed' && <div className="settings-section"><h3>App</h3>
+          <button className="secondary" type="button" onClick={onInstall}><Download size={16} /> Install app</button>
+        </div>}
         <div className="settings-section"><h3>Data</h3>
           <div className="chips">
             <button type="button" className="secondary" onClick={() => downloadJournal(tracker.journal, 'json', todayKey)}>Export JSON</button>

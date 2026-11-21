@@ -39,6 +39,9 @@ jobs:
       - name: Verify desktop and mobile journal flows
         run: npm run test:e2e
 
+      - name: Verify install assets and offline guest mode
+        run: npm run test:pwa
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
