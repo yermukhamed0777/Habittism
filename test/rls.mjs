@@ -30,6 +30,7 @@ async function login(user) {
 
 const count = async (table) => (await db.query(`select count(*)::int as count from public.${table}`)).rows[0].count
 const merge = (data) => db.query('select public.merge_guest_journal($1::jsonb)', [JSON.stringify(data)])
+const importModern = (data) => db.query('select public.import_modern_journal($1::jsonb)', [JSON.stringify(data)])
 const importLegacy = (data) => db.query('select public.import_legacy_journal($1::jsonb)', [JSON.stringify(data)])
 
 try {
@@ -76,21 +77,32 @@ try {
   }), { code: '23514' })
   assert.equal(await count('habits'), 2)
 
+  const original = { ...guest, habits: [{ ...guest.habits[0], id: aliceHabit, name: 'Older name' }],
+    logs: [{ ...guest.logs[0], habit_id: aliceHabit }] }
+  await importModern(original)
+  await importModern(original)
+  assert.equal(await count('habits'), 2)
+  assert.equal((await db.query('select name from public.habits where id=$1', [aliceHabit])).rows[0].name, 'Drink water')
+  assert.equal((await db.query('select note from public.habit_logs where habit_id=$1', [aliceHabit])).rows[0].note, 'Cloud update')
+
   await login(bob)
   for (const table of ['profiles', 'habits', 'habit_logs', 'daily_affirmations']) assert.equal(await count(table), 0)
   assert.equal((await db.query("update public.habit_logs set note='Wrong owner' where habit_id=$1 returning habit_id", [aliceHabit])).rows.length, 0)
   assert.equal((await db.query("update public.habits set archived=true, archive_periods='[]' where id=$1 returning id", [aliceHabit])).rows.length, 0)
   await assert.rejects(db.query('insert into public.habit_logs(habit_id, day, value) values ($1,$2,1)', [aliceHabit, day]), { code: '23503' })
   await assert.rejects(db.query('insert into public.habit_logs(user_id, habit_id, day, value) values ($1,$2,$3,1)', [alice, aliceHabit, day]), { code: '42501' })
-  await merge(guest)
+  await importModern(original)
+  await importModern(original)
   assert.equal(await count('habits'), 1)
   assert.equal(await count('habit_logs'), 1)
+  assert.equal((await db.query('select note from public.habit_logs')).rows[0].note, 'A little progress')
   assert.notEqual((await db.query('select id from public.habits')).rows[0].id, aliceHabit)
 
   await db.exec('set role anon')
   await assert.rejects(db.query('select note from public.habit_logs'), { code: '42501' })
   await assert.rejects(merge(guest), { code: '42501' })
   await assert.rejects(importLegacy(legacy), { code: '42501' })
+  await assert.rejects(importModern(guest), { code: '42501' })
   console.log('PASS PostgreSQL owner isolation, reflections, atomic guest merge, conflict handling, and legacy import')
 } finally {
   await db.close()

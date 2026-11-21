@@ -6,6 +6,7 @@ import { JournalDialog } from './components/JournalDialog'
 import { CommandMenu, type WorkspaceCommand } from './components/CommandMenu'
 import { InstallApp } from './components/InstallApp'
 import { LegacyImport } from './components/LegacyImport'
+import type { ImportData } from './lib/journalImport'
 import { ReminderSettings } from './components/ReminderSettings'
 import { StarterPacks } from './components/StarterPacks'
 import { ThemeToggle } from './components/ThemeToggle'
@@ -21,7 +22,7 @@ import { habitRepository, type HabitRepository } from './lib/habitRepository'
 import { claimGuestJournal, loadGuestJournal } from './lib/guestJournal'
 import { downloadJournal } from './lib/journalExport'
 import { useInstallState } from './lib/installApp'
-import { browserBackupImported, markBrowserBackupImported, readBrowserBackup, type LegacyJournal } from './lib/legacyJournal'
+import { browserBackupImported, markBrowserBackupImported, readBrowserBackup } from './lib/legacyJournal'
 import { dayEntries, isComplete, isOnToday, type Journal } from './lib/tracking'
 import { useCloudJournal } from './store/useCloudJournal'
 
@@ -156,10 +157,11 @@ function Dashboard({ account, initial, openAccount, merged }: {
     })),
   ] : []
 
-  async function importBackup(backup: LegacyJournal, fromBrowser: boolean) {
+  async function importBackup(backup: ImportData, fromBrowser: boolean) {
     if (!repository || !userId) return
     if (tracker.sync.pending) throw new Error('Wait for your changes to finish syncing.')
-    await repository.importLegacy(backup)
+    if (backup.format === 'modern') await repository.importModern(backup.data)
+    else await repository.importLegacy(backup.data)
     tracker.setJournal(await repository.load())
     if (fromBrowser) {
       markBrowserBackupImported(userId)
@@ -174,7 +176,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
     setImportError('')
     setDialog({ kind: 'importing' })
     try {
-      await importBackup(browserBackup, true)
+      await importBackup({ format: 'legacy', data: browserBackup }, true)
     } catch (reason) {
       setImportError(reason instanceof Error ? reason.message : 'Could not import your backup. Please try again.')
       close()
@@ -268,7 +270,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
           <div className="chips">
             <button type="button" className="secondary" onClick={() => downloadJournal(tracker.journal, 'json', todayKey)}>Export JSON</button>
             <button type="button" className="secondary" onClick={() => downloadJournal(tracker.journal, 'csv', todayKey)}>Export CSV</button>
-            {account && <button type="button" className="secondary" disabled={!!tracker.sync.pending} onClick={() => setDialog({ kind: 'import' })}>Import browser backup</button>}
+            {account && <button type="button" className="secondary" disabled={!!tracker.sync.pending} onClick={() => setDialog({ kind: 'import' })}>Import JSON backup</button>}
           </div>
         </div>
         {!!tracker.sync.pending && <p>Finish syncing changes before signing out.</p>}

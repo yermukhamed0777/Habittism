@@ -70,14 +70,15 @@ async function mockSupabase(route) {
   }
 
   assert.equal(request.headers().authorization, `Bearer ${token}`)
-  if (table === 'rpc' && rpc === 'merge_guest_journal') {
+  if (table === 'rpc' && (rpc === 'merge_guest_journal' || rpc === 'import_modern_journal')) {
     const { payload } = request.postDataJSON()
     for (const habit of payload.habits) {
-      const id = `guest-${habit.id}`
+      const id = tables.habits.has(habit.id) ? habit.id : `guest-${habit.id}`
       if (!tables.habits.has(id)) tables.habits.set(id, { ...habit, id, user_id: user.id })
     }
     for (const log of payload.logs) {
-      const row = { ...log, habit_id: `guest-${log.habit_id}`, user_id: user.id }
+      const habitId = tables.habits.has(log.habit_id) ? log.habit_id : `guest-${log.habit_id}`
+      const row = { ...log, habit_id: habitId, user_id: user.id }
       const key = keyFor('habit_logs', row)
       if (!tables.habit_logs.has(key)) tables.habit_logs.set(key, row)
     }
@@ -296,7 +297,7 @@ try {
     return registration && (await registration.getNotifications()).some((notice) => notice.tag === 'habittism-daily-reminder')
   })
   await page.getByRole('button', { name: 'Turn off' }).click()
-  await page.getByRole('button', { name: 'Import browser backup' }).click()
+  await page.getByRole('button', { name: 'Import JSON backup' }).click()
   await page.getByLabel('Habittism backup file').setInputFiles({
     name: 'old-browser.json',
     mimeType: 'application/json',
@@ -408,6 +409,40 @@ try {
   await page.getByRole('heading', { name: 'Friday, November 20, 2026', exact: true }).waitFor()
   await close()
   console.log('PASS weekly outlook, flexible targets and calendar drill-down')
+  const sourceId = crypto.randomUUID()
+  const restore = structuredClone(exported)
+  restore.habits.push({
+    ...guestHabit, id: sourceId, name: 'Saved water goal', archived: true,
+    archivePeriods: [{ start: '2026-11-21', end: null }],
+  })
+  restore.logs[sourceId] = {
+    ...restore.logs[guestHabit.id],
+    '2026-11-21': { value: 0, frozen: true },
+  }
+  const importFile = (data) => page.getByLabel('Habittism backup file').setInputFiles({
+    name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)),
+  })
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('button', { name: 'Import JSON backup' }).click()
+  await importFile({ ...restore, version: 2 })
+  await page.getByText('This Habittism backup version is unsupported.').waitFor()
+  assert.equal(await page.getByRole('button', { name: 'Import data', exact: true }).isDisabled(), true)
+  await importFile({ ...restore, logs: { ...restore.logs, [sourceId]: { '2026-11-20': { value: 'broken' } } } })
+  await page.getByText(/backup contains invalid Habittism records/).waitFor()
+  assert.equal(await page.getByRole('button', { name: 'Import data', exact: true }).isDisabled(), true)
+  await importFile(restore)
+  await page.getByText(/3 habits.*2 numeric.*1 archived/).waitFor()
+  await page.getByRole('button', { name: 'Import data', exact: true }).click()
+  await page.getByRole('dialog').waitFor({ state: 'hidden' })
+  assert.equal(tables.habits.size, 7)
+  const saved = [...tables.habits.values()].find(({ name }) => name === 'Saved water goal')
+  assert.equal(saved.kind, 'numeric')
+  assert.equal(saved.goal, guestHabit.goal)
+  assert.deepEqual(saved.archive_periods, restore.habits.at(-1).archivePeriods)
+  assert.equal(tables.habit_logs.get(saved.id + ':2026-11-20').note, '=Better, "one sip at a time"')
+  assert.equal(tables.habit_logs.get(saved.id + ':2026-11-21').frozen, true)
+  console.log('PASS modern JSON restore preserves numeric goals, archive history, and reflections')
+
   assert.deepEqual(errors, [])
   console.log('PASS mobile layout, reminders, file import, guest templates, keyboard check-ins, reflections, exports, and OAuth guest merge')
 } finally {

@@ -28,6 +28,8 @@ function oldSchedule(id: string, target: number) {
 export function parseLegacyJournal(raw: string, today: string) {
   const parsed = record(JSON.parse(raw))
   const state = record(parsed.state ?? parsed)
+  if (Object.hasOwn(state, 'logs')) return null
+  if (Array.isArray(state.habits) && state.habits.some((entry: unknown) => Object.hasOwn(record(entry), 'createdOn'))) return null
   const byHabit = record(state.completions)
   const seen = new Set<string>()
   const logs: { legacy_id: string; day: string }[] = []

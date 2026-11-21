@@ -137,6 +137,19 @@ export function habitRepository(client: SupabaseClient, userId: string) {
       return checked(client.rpc('import_legacy_journal', { payload }))
     },
 
+    importModern(journal: Journal) {
+      return checked(client.rpc('import_modern_journal', { payload: {
+        habits: journal.habits.map((habit) => ({
+          ...habitFields(habit), id: habit.id, created_on: habit.createdOn,
+          archived: habit.archived, archive_periods: archiveHistory(habit),
+        })),
+        logs: Object.entries(journal.logs).flatMap(([id, logs]) =>
+          Object.entries(logs).map(([day, log]) => ({ habit_id: id, day, ...logFields(log) }))),
+        affirmations: Object.entries(journal.affirmations)
+          .filter(([, body]) => body.trim()).map(([day, body]) => ({ day, body: body.trim() })),
+      } }))
+    },
+
     mergeGuest(journal: Journal) {
       return checked(client.rpc('merge_guest_journal', { payload: {
         habits: journal.habits.map((habit) => ({
