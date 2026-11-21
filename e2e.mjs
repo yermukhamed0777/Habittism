@@ -102,6 +102,22 @@ async function mockSupabase(route) {
     }
     return send(null)
   }
+  if (table === 'rpc' && rpc === 'import_modern_journal') {
+    const { payload } = request.postDataJSON()
+    for (const habit of payload.habits) {
+      const id = habit.id || `imported-${crypto.randomUUID()}`
+      tables.habits.set(id, { ...habit, id, user_id: user.id })
+    }
+    for (const log of payload.logs) {
+      const row = { ...log, user_id: user.id }
+      const key = keyFor('habit_logs', row)
+      tables.habit_logs.set(key, row)
+    }
+    for (const note of payload.affirmations) {
+      tables.daily_affirmations.set(note.day, { ...note, user_id: user.id })
+    }
+    return send(null)
+  }
 
   assert.ok(tables[table], `Unmocked data route ${endpoint.pathname}`)
   if (method === 'POST') {
@@ -408,6 +424,13 @@ try {
   await page.getByRole('heading', { name: 'Friday, November 20, 2026', exact: true }).waitFor()
   await close()
   console.log('PASS weekly outlook, flexible targets and calendar drill-down')
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('button', { name: 'Import browser backup' }).click()
+  await page.getByLabel('Habittism backup file').setInputFiles(await json.path())
+  await page.getByText('habits').waitFor()
+  await page.getByRole('button', { name: 'Import data', exact: true }).click()
+  await page.getByRole('dialog').waitFor({ state: 'hidden' })
+  console.log('PASS modern JSON export and import lossless round-trip')
   assert.deepEqual(errors, [])
   console.log('PASS mobile layout, reminders, file import, guest templates, keyboard check-ins, reflections, exports, and OAuth guest merge')
 } finally {

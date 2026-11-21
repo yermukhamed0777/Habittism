@@ -58,24 +58,38 @@ export interface ArchivePeriod {
 
 const emptyArchive: readonly ArchivePeriod[] = []
 
+export function cleanArchivePeriods(periods: readonly ArchivePeriod[] | undefined): ArchivePeriod[] {
+  if (!periods?.length) return []
+  return periods.filter((period): period is ArchivePeriod => {
+    if (!period || typeof period !== 'object') return false
+    const { start, end } = period
+    const validStart = start === null || (typeof start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start))
+    const validEnd = end === null || (typeof end === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(end))
+    if (!validStart || !validEnd) return false
+    if (typeof start === 'string' && typeof end === 'string' && start > end) return false
+    return true
+  })
+}
+
 export function archiveHistory(habit: TrackedHabit): readonly ArchivePeriod[] {
-  if (habit.archivePeriods?.length) return habit.archivePeriods
+  if (habit.archivePeriods?.length) return cleanArchivePeriods(habit.archivePeriods)
   return habit.archived ? [{ start: habit.archived_at?.slice(0, 10) ?? null, end: null }] : emptyArchive
 }
 
 export function changeArchive(habit: TrackedHabit, archived: boolean, day: string): ArchivePeriod[] {
+  const effectiveDay = day < habit.createdOn ? habit.createdOn : day
   const periods = [...archiveHistory(habit)]
   const last = periods.at(-1)
   if (archived === habit.archived) return periods
 
   if (archived) {
-    if (last?.end && day <= last.end) periods[periods.length - 1] = { ...last, end: null }
-    else periods.push({ start: day, end: null })
+    if (last?.end && effectiveDay <= last.end) periods[periods.length - 1] = { ...last, end: null }
+    else periods.push({ start: effectiveDay, end: null })
   } else if (last && !last.end) {
-    if (last.start && day <= last.start) periods.pop()
-    else periods[periods.length - 1] = { ...last, end: day }
+    if (last.start && effectiveDay <= last.start) periods.pop()
+    else periods[periods.length - 1] = { ...last, end: effectiveDay }
   }
-  return periods
+  return cleanArchivePeriods(periods)
 }
 
 export function isActiveOn(habit: TrackedHabit, key: string) {

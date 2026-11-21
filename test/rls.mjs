@@ -31,6 +31,7 @@ async function login(user) {
 const count = async (table) => (await db.query(`select count(*)::int as count from public.${table}`)).rows[0].count
 const merge = (data) => db.query('select public.merge_guest_journal($1::jsonb)', [JSON.stringify(data)])
 const importLegacy = (data) => db.query('select public.import_legacy_journal($1::jsonb)', [JSON.stringify(data)])
+const importModern = (data) => db.query('select public.import_modern_journal($1::jsonb)', [JSON.stringify(data)])
 
 try {
   await db.exec(`
@@ -55,6 +56,7 @@ try {
   const aliceHabit = savedHabit.id
   assert.deepEqual(savedHabit.archive_periods, guest.habits[0].archive_periods)
   await assert.rejects(db.query("update public.habits set archive_periods='[null]' where id=$1", [aliceHabit]), { code: '23514' })
+  await assert.rejects(db.query("update public.habits set archive_periods='[{\"start\":\"2026-11-25\",\"end\":\"2026-11-20\"}]' where id=$1", [aliceHabit]), { code: '23514' })
   const row = (await db.query('select value::float8, note, mood from public.habit_logs')).rows[0]
   assert.deepEqual(row, { value: 1.5, note: 'A little progress', mood: 'steady' })
   await db.query("update public.habit_logs set value=2, note='Cloud update' where habit_id=$1", [aliceHabit])
@@ -68,13 +70,37 @@ try {
   assert.equal(await count('habit_logs'), 2)
   assert.equal((await db.query('select body from public.daily_affirmations')).rows[0].body, 'Start again')
 
+  // Modern import validation
+  const modernHabitId = '30000000-0000-4000-8000-000000000001'
+  const modernBackup = {
+    habits: [{
+      id: modernHabitId, name: 'Run intervals', icon: 'run', color: 'iris', category: 'fitness',
+      custom_category: null, schedule_type: 'weekly', weekdays: [], weekly_target: 3,
+      kind: 'numeric', goal: 5, unit: 'km', created_on: '2026-11-15', archived: false,
+      archive_periods: [{ start: '2026-11-16', end: '2026-11-17' }],
+    }],
+    logs: [{
+      habit_id: modernHabitId, day: '2026-11-18', value: 5.2, frozen: false, note: 'Fast pace', mood: 'energized',
+    }],
+    affirmations: [{ day: '2026-11-18', body: 'Pushing boundaries' }],
+  }
+  await importModern(modernBackup)
+  const modernRow = (await db.query('select kind, goal::float8, unit, weekly_target, archive_periods from public.habits where guest_id=$1', [modernHabitId])).rows[0]
+  assert.equal(modernRow.kind, 'numeric')
+  assert.equal(modernRow.goal, 5)
+  assert.equal(modernRow.unit, 'km')
+  assert.equal(modernRow.weekly_target, 3)
+  assert.deepEqual(modernRow.archive_periods, [{ start: '2026-11-16', end: '2026-11-17' }])
+  const modernLogRow = (await db.query('select value::float8, note, mood from public.habit_logs where day=$1', ['2026-11-18'])).rows[0]
+  assert.deepEqual(modernLogRow, { value: 5.2, note: 'Fast pace', mood: 'energized' })
+
   const invalidId = '20000000-0000-4000-8000-000000000099'
   await assert.rejects(merge({
     habits: [{ ...habit, id: invalidId }],
     logs: [{ ...guest.logs[0], habit_id: invalidId, mood: 'invalid' }],
     affirmations: [],
   }), { code: '23514' })
-  assert.equal(await count('habits'), 2)
+  assert.equal(await count('habits'), 3)
 
   await login(bob)
   for (const table of ['profiles', 'habits', 'habit_logs', 'daily_affirmations']) assert.equal(await count(table), 0)
@@ -91,7 +117,8 @@ try {
   await assert.rejects(db.query('select note from public.habit_logs'), { code: '42501' })
   await assert.rejects(merge(guest), { code: '42501' })
   await assert.rejects(importLegacy(legacy), { code: '42501' })
-  console.log('PASS PostgreSQL owner isolation, reflections, atomic guest merge, conflict handling, and legacy import')
+  await assert.rejects(importModern(modernBackup), { code: '42501' })
+  console.log('PASS PostgreSQL owner isolation, reflections, atomic guest merge, conflict handling, and modern/legacy import')
 } finally {
   await db.close()
 }

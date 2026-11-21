@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { LegacyJournal } from './legacyJournal'
 import { archiveHistory, type ArchivePeriod, type HabitDetails, type HabitInput, type HabitLog, type Journal, type TrackedHabit } from './tracking'
+import type { ParsedModernJournal } from './journalImport'
 
 function detailFields(habit: HabitDetails) {
   return {
@@ -135,6 +136,19 @@ export function habitRepository(client: SupabaseClient, userId: string) {
 
     importLegacy(payload: LegacyJournal) {
       return checked(client.rpc('import_legacy_journal', { payload }))
+    },
+
+    importModern(parsed: ParsedModernJournal) {
+      return checked(client.rpc('import_modern_journal', { payload: {
+        habits: parsed.journal.habits.map((habit) => ({
+          ...habitFields(habit), id: habit.id, created_on: habit.createdOn,
+          archived: habit.archived, archive_periods: archiveHistory(habit),
+        })),
+        logs: Object.entries(parsed.journal.logs).flatMap(([id, logs]) =>
+          Object.entries(logs).map(([day, log]) => ({ habit_id: id, day, ...logFields(log) }))),
+        affirmations: Object.entries(parsed.journal.affirmations)
+          .filter(([, body]) => body.trim()).map(([day, body]) => ({ day, body: body.trim() })),
+      } }))
     },
 
     mergeGuest(journal: Journal) {

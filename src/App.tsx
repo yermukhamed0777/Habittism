@@ -5,7 +5,7 @@ import { AuthShell } from './components/AuthGate'
 import { JournalDialog } from './components/JournalDialog'
 import { CommandMenu, type WorkspaceCommand } from './components/CommandMenu'
 import { InstallApp } from './components/InstallApp'
-import { LegacyImport } from './components/LegacyImport'
+import { LegacyImport, type ImportData } from './components/LegacyImport'
 import { ReminderSettings } from './components/ReminderSettings'
 import { StarterPacks } from './components/StarterPacks'
 import { ThemeToggle } from './components/ThemeToggle'
@@ -21,7 +21,7 @@ import { habitRepository, type HabitRepository } from './lib/habitRepository'
 import { claimGuestJournal, loadGuestJournal } from './lib/guestJournal'
 import { downloadJournal } from './lib/journalExport'
 import { useInstallState } from './lib/installApp'
-import { browserBackupImported, markBrowserBackupImported, readBrowserBackup, type LegacyJournal } from './lib/legacyJournal'
+import { browserBackupImported, markBrowserBackupImported, readBrowserBackup } from './lib/legacyJournal'
 import { dayEntries, isComplete, isOnToday, type Journal } from './lib/tracking'
 import { useCloudJournal } from './store/useCloudJournal'
 
@@ -103,7 +103,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
 }) {
   const { client, session, repository } = account ?? {}
   const userId = session?.user.id
-  const tracker = useCloudJournal(initial, repository)
+  const tracker = useCloudJournal(initial, repository, userId)
   const installState = useInstallState()
   const [view, setView] = useState(initialView)
   const [dialog, setDialog] = useState<Dialog | null>(null)
@@ -156,14 +156,23 @@ function Dashboard({ account, initial, openAccount, merged }: {
     })),
   ] : []
 
-  async function importBackup(backup: LegacyJournal, fromBrowser: boolean) {
-    if (!repository || !userId) return
+  async function importBackup(payload: ImportData, fromBrowser: boolean) {
     if (tracker.sync.pending) throw new Error('Wait for your changes to finish syncing.')
-    await repository.importLegacy(backup)
-    tracker.setJournal(await repository.load())
-    if (fromBrowser) {
-      markBrowserBackupImported(userId)
-      setBrowserBackup(null)
+    if (payload.format === 'modern') {
+      if (repository) {
+        await repository.importModern(payload.data)
+        tracker.setJournal(await repository.load())
+      } else {
+        tracker.restoreJournal(payload.data.journal)
+      }
+    } else {
+      if (!repository || !userId) return
+      await repository.importLegacy(payload.data)
+      tracker.setJournal(await repository.load())
+      if (fromBrowser) {
+        markBrowserBackupImported(userId)
+        setBrowserBackup(null)
+      }
     }
     setImported(true)
     close()
@@ -174,7 +183,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
     setImportError('')
     setDialog({ kind: 'importing' })
     try {
-      await importBackup(browserBackup, true)
+      await importBackup({ format: 'legacy', data: browserBackup }, true)
     } catch (reason) {
       setImportError(reason instanceof Error ? reason.message : 'Could not import your backup. Please try again.')
       close()
