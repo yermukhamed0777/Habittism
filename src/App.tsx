@@ -104,7 +104,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
 }) {
   const { client, session, repository } = account ?? {}
   const userId = session?.user.id
-  const tracker = useCloudJournal(initial, repository)
+  const tracker = useCloudJournal(initial, repository, userId)
   const installState = useInstallState()
   const [view, setView] = useState(initialView)
   const [dialog, setDialog] = useState<Dialog | null>(null)
@@ -219,7 +219,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
       </header>
       <main className="workspace-main">
         {tracker.sync.error ? (
-          <div className="sync-banner" role="alert"><span>Changes are waiting to sync. {tracker.sync.error}</span>
+          <div className="sync-banner" role="alert"><span>{tracker.sync.durable ? 'Changes are saved on this device and waiting to sync.' : 'Keep this tab open until your changes sync.'} {tracker.sync.error}</span>
             <button type="button" className="secondary" onClick={() => void tracker.retry()}>Retry sync</button></div>
         ) : <div className="sync-status" data-pending={!!tracker.sync.pending} role="status">
           {tracker.sync.pending ? 'Saving changes…' : account ? 'All changes synced' : 'Guest journal'}

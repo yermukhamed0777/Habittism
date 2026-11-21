@@ -258,6 +258,22 @@ try {
   assert.equal(tables.daily_affirmations.get('2026-11-20').body, 'I keep showing up.')
   console.log('PASS optimistic affirmation save, retry, session persistence, and cloud reload')
 
+  failNextNote = true
+  await page.getByRole('textbox', { name: 'Daily affirmation' }).fill('The journal survives a reload.')
+  await page.getByRole('button', { name: 'Retry sync' }).waitFor()
+  await page.evaluate(() => {
+    localStorage.setItem('habittism-outbox-v1:a-different-account:0001', JSON.stringify({
+      action: { type: 'affirmation', day: '2026-11-20', body: 'Another account’s draft' }, readyAt: 0,
+    }))
+  })
+  await page.reload()
+  await synced()
+  assert.equal(await page.getByRole('textbox', { name: 'Daily affirmation' }).inputValue(), 'The journal survives a reload.')
+  assert.equal(tables.daily_affirmations.get('2026-11-20').body, 'The journal survives a reload.')
+  assert.ok(await page.evaluate(() => localStorage.getItem('habittism-outbox-v1:a-different-account:0001')))
+  assert.equal(await page.evaluate((id) => Object.keys(localStorage).some((key) => key.startsWith('habittism-outbox-v1:' + id + ':')), user.id), false)
+  console.log('PASS durable pending writes replay after reload for their owning account')
+
   await page.evaluate(() => {
     localStorage.setItem('habittism-store-v1', JSON.stringify({ state: {
       habits: [{ id: 'legacy', name: 'Evening journal', icon: 'pen', category: 'mind', color: 'iris', targetPerWeek: 7, createdAt: '2026-11-17', archived: false }],

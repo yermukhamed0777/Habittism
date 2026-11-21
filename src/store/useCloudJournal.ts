@@ -1,52 +1,171 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { saveGuestJournal } from '../lib/guestJournal'
 import type { HabitRepository } from '../lib/habitRepository'
-import { changeArchive, type HabitDetails, type HabitInput, type HabitLog, type Journal, type TrackedHabit } from '../lib/tracking'
+import { changeArchive, type ArchivePeriod, type HabitDetails, type HabitInput, type HabitLog, type Journal, type TrackedHabit } from '../lib/tracking'
 
-type Write = { send: () => Promise<unknown>; readyAt: number }
+type Action =
+  | { type: 'create'; habits: TrackedHabit[] }
+  | { type: 'delete'; id: string }
+  | { type: 'archive'; id: string; archived: boolean; periods: ArchivePeriod[] }
+  | { type: 'details'; id: string; patch: HabitDetails }
+  | { type: 'log'; id: string; day: string; log: HabitLog | null }
+  | { type: 'affirmation'; day: string; body: string }
 
-export function useCloudJournal(initial: Journal, repository?: HabitRepository) {
-  const [journal, setJournal] = useState(initial)
-  const [sync, setSync] = useState({ pending: 0, error: '' })
-  const [queue] = useState(() => {
-    const pending = new Map<string, Write>()
-    let writing = false
-    let timer: ReturnType<typeof setTimeout> | undefined
+type Pending = { key: string; action: Action; readyAt: number; stored: boolean }
+type Sync = { pending: number; error: string; durable: boolean }
 
-    async function flush() {
-      clearTimeout(timer)
-      if (writing || pending.size === 0) return
-      const [key, task] = pending.entries().next().value as [string, Write]
-      const delay = task.readyAt - performance.now()
-      if (delay > 0) {
-        timer = setTimeout(() => void flush(), delay)
-        return
+function apply(journal: Journal, action: Action): Journal {
+  switch (action.type) {
+    case 'create': {
+      const ids = new Set(journal.habits.map(({ id }) => id))
+      return { ...journal, habits: [...journal.habits, ...action.habits.filter(({ id }) => !ids.has(id))] }
+    }
+    case 'delete': {
+      const logs = { ...journal.logs }
+      delete logs[action.id]
+      return { ...journal, habits: journal.habits.filter(({ id }) => id !== action.id), logs }
+    }
+    case 'archive':
+      return { ...journal, habits: journal.habits.map((habit) => habit.id === action.id
+        ? { ...habit, archived: action.archived, archivePeriods: action.periods } : habit) }
+    case 'details':
+      return { ...journal, habits: journal.habits.map((habit) => habit.id === action.id ? { ...habit, ...action.patch } : habit) }
+    case 'log': {
+      const byDay = { ...journal.logs[action.id] }
+      if (action.log) byDay[action.day] = action.log
+      else delete byDay[action.day]
+      return { ...journal, logs: { ...journal.logs, [action.id]: byDay } }
+    }
+    case 'affirmation':
+      return { ...journal, affirmations: { ...journal.affirmations, [action.day]: action.body } }
+  }
+}
+
+function send(repository: HabitRepository, action: Action) {
+  switch (action.type) {
+    case 'create': return repository.createHabits(action.habits)
+    case 'delete': return repository.deleteHabit(action.id)
+    case 'archive': return repository.updateArchive(action.id, action.archived, action.periods)
+    case 'details': return repository.updateDetails(action.id, action.patch)
+    case 'log': return repository.writeLog(action.id, action.day, action.log)
+    case 'affirmation': return repository.writeAffirmation(action.day, action.body.trim())
+  }
+}
+
+const now = () => performance.timeOrigin + performance.now()
+
+function readPending(prefix: string): Pending[] {
+  const writes: Pending[] = []
+  try {
+    for (const key of Object.keys(localStorage).filter((key) => key.startsWith(prefix)).sort()) {
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const { action, readyAt } = JSON.parse(raw) as Omit<Pending, 'key' | 'stored'>
+      if (action && Number.isFinite(readyAt)) writes.push({ key, action, readyAt, stored: true })
+    }
+  } catch { /* Pending writes can still use the in-memory queue. */ }
+  return writes
+}
+
+function createQueue(repository: HabitRepository, userId: string, onSync: (sync: Sync) => void, onRecover: (actions: Action[]) => void) {
+  const prefix = 'habittism-outbox-v1:' + userId + ':'
+  const pending = new Map<string, Pending>()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let active = false
+  let sending = false
+
+  function report(error = '') {
+    if (active) onSync({ pending: pending.size, error, durable: [...pending.values()].every(({ stored }) => stored) })
+  }
+
+  function reconcile() {
+    const saved = new Map(readPending(prefix).map((entry) => [entry.key, entry]))
+    const recovered: Action[] = []
+    for (const [key, write] of pending) {
+      if (write.stored && !saved.has(key)) pending.delete(key)
+    }
+    for (const [key, write] of saved) {
+      if (!pending.has(key)) recovered.push(write.action)
+      if (pending.get(key)?.stored !== false) pending.set(key, write)
+    }
+    if (recovered.length) onRecover(recovered)
+  }
+
+  async function flush() {
+    if (sending || !active) return
+    clearTimeout(timer)
+    sending = true
+    const drain = async () => {
+      while (active) {
+        reconcile()
+        const key = [...pending.keys()].sort()[0]
+        const write = pending.get(key)
+        if (!write) { report(); return }
+        const delay = write.readyAt - now()
+        if (delay > 0) {
+          report()
+          timer = setTimeout(() => { void flush() }, delay)
+          return
+        }
+        report()
+        await send(repository, write.action)
+        if (write.stored) localStorage.removeItem(key)
+        pending.delete(key)
       }
+    }
+    try {
+      if (navigator.locks) await navigator.locks.request(prefix, drain)
+      else await drain()
+    } catch (error) {
+      report(error instanceof Error ? error.message : 'Could not sync changes.')
+    } finally {
+      sending = false
+    }
+  }
 
-      writing = true
-      setSync({ pending: pending.size, error: '' })
-      try {
-        await task.send()
-      } catch (error) {
-        writing = false
-        setSync({ pending: pending.size, error: error instanceof Error ? error.message : 'Could not sync changes.' })
-        return
-      }
-      writing = false
-      if (pending.get(key) === task) pending.delete(key)
-      setSync({ pending: pending.size, error: '' })
+  return {
+    start() {
+      active = true
+      reconcile()
+      report()
       void flush()
-    }
+      window.addEventListener('online', flush)
+      return () => {
+        active = false
+        clearTimeout(timer)
+        window.removeEventListener('online', flush)
+      }
+    },
+    add(action: Action) {
+      const timestamp = now()
+      const last = [...pending.values()].at(-1)
+      const replace = action.type === 'affirmation' && last?.action.type === 'affirmation'
+        && last.action.day === action.day && last.readyAt > timestamp
+      const key = replace ? last.key : prefix + timestamp.toFixed(4).padStart(18, '0') + ':' + crypto.randomUUID()
+      const readyAt = timestamp + (action.type === 'affirmation' ? 650 : 0)
+      let stored = false
+      try {
+        localStorage.setItem(key, JSON.stringify({ action, readyAt }))
+        stored = true
+      } catch { /* Keep the pending write in memory until it syncs. */ }
+      pending.set(key, { key, action, readyAt, stored })
+      report()
+      void flush()
+    },
+    flush,
+  }
+}
 
-    return {
-      flush,
-      add(key: string, send: Write['send'], delay = 0) {
-        pending.set(key, { send, readyAt: performance.now() + delay })
-        setSync((previous) => ({ ...previous, pending: pending.size }))
-        void flush()
-      },
-    }
-  })
+export function useCloudJournal(initial: Journal, repository?: HabitRepository, userId?: string) {
+  const [journal, setJournal] = useState(initial)
+  const [sync, setSync] = useState<Sync>({ pending: 0, error: '', durable: true })
+  const [queue] = useState(() => repository && userId
+    ? createQueue(repository, userId, setSync, (actions) => setJournal((previous) => actions.reduce(apply, previous)))
+    : undefined)
+
+  useLayoutEffect(() => {
+    if (queue) return queue.start()
+  }, [queue])
 
   useLayoutEffect(() => {
     if (!repository) {
@@ -55,72 +174,40 @@ export function useCloudJournal(initial: Journal, repository?: HabitRepository) 
   }, [journal, repository])
 
   useEffect(() => {
-    if (!sync.pending) return
-    const preventLoss = (event: BeforeUnloadEvent) => event.preventDefault()
-    window.addEventListener('beforeunload', preventLoss)
-    window.addEventListener('online', queue.flush)
-    return () => {
-      window.removeEventListener('beforeunload', preventLoss)
-      window.removeEventListener('online', queue.flush)
+    if (sync.durable) return
+    const preventLoss = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = true
     }
-  }, [queue, sync.pending])
+    window.addEventListener('beforeunload', preventLoss)
+    return () => window.removeEventListener('beforeunload', preventLoss)
+  }, [sync.durable])
 
-  function createHabit(input: HabitInput, createdOn: string) {
-    createHabits([input], createdOn)
+  function update(action: Action) {
+    setJournal((previous) => apply(previous, action))
+    queue?.add(action)
   }
 
   function createHabits(inputs: HabitInput[], createdOn: string) {
     if (!inputs.length) return
-    const habits: TrackedHabit[] = inputs.map((input) => ({ ...input, id: crypto.randomUUID(), createdOn, archived: false }))
-    setJournal((previous) => ({ ...previous, habits: [...previous.habits, ...habits] }))
-    if (repository) queue.add(`create:${habits[0].id}`, () => repository.createHabits(habits))
-  }
-
-  function deleteHabit(id: string) {
-    setJournal((previous) => {
-      const logs = { ...previous.logs }
-      delete logs[id]
-      return { ...previous, habits: previous.habits.filter((habit) => habit.id !== id), logs }
-    })
-    if (repository) queue.add(`delete:${id}`, () => repository.deleteHabit(id))
-  }
-
-  function updateArchive(habit: TrackedHabit, archived: boolean, day: string) {
-    const archivePeriods = changeArchive(habit, archived, day)
-    setJournal((previous) => ({
-      ...previous,
-      habits: previous.habits.map((entry) =>
-        entry.id === habit.id ? { ...entry, archived, archivePeriods } : entry),
-    }))
-    if (repository) queue.add(`archive:${habit.id}`, () => repository.updateArchive(habit.id, archived, archivePeriods))
+    const habits = inputs.map((input) => ({ ...input, id: crypto.randomUUID(), createdOn, archived: false }))
+    update({ type: 'create', habits })
   }
 
   function updateDetails(id: string, details: HabitDetails) {
     const { name, icon, color, category, customCategory } = details
-    const patch = { name, icon, color, category, customCategory }
-    setJournal((previous) => ({
-      ...previous,
-      habits: previous.habits.map((habit) => habit.id === id ? { ...habit, ...patch } : habit),
-    }))
-    if (repository) queue.add(`details:${id}`, () => repository.updateDetails(id, patch))
+    update({ type: 'details', id, patch: { name, icon, color, category, customCategory } })
   }
 
-  function writeLog(id: string, day: string, log: HabitLog | null) {
-    setJournal((previous) => {
-      const habitLogs = { ...previous.logs[id] }
-      if (log) habitLogs[day] = log
-      else delete habitLogs[day]
-      return { ...previous, logs: { ...previous.logs, [id]: habitLogs } }
-    })
-    if (repository) queue.add(`log:${id}:${day}`, () => repository.writeLog(id, day, log))
+  return {
+    journal, setJournal, sync, retry: () => queue?.flush(), createHabits, updateDetails,
+    createHabit: (habit: HabitInput, day: string) => createHabits([habit], day),
+    deleteHabit: (id: string) => update({ type: 'delete', id }),
+    updateArchive: (habit: TrackedHabit, archived: boolean, day: string) =>
+      update({ type: 'archive', id: habit.id, archived, periods: changeArchive(habit, archived, day) }),
+    writeLog: (id: string, day: string, log: HabitLog | null) => update({ type: 'log', id, day, log }),
+    writeAffirmation: (day: string, body: string) => update({ type: 'affirmation', day, body }),
   }
-
-  function writeAffirmation(day: string, body: string) {
-    setJournal((previous) => ({ ...previous, affirmations: { ...previous.affirmations, [day]: body } }))
-    if (repository) queue.add(`affirmation:${day}`, () => repository.writeAffirmation(day, body.trim()), 650)
-  }
-
-  return { journal, setJournal, sync, retry: queue.flush, createHabit, createHabits, deleteHabit, updateArchive, updateDetails, writeLog, writeAffirmation }
 }
 
 export type CloudJournal = ReturnType<typeof useCloudJournal>
