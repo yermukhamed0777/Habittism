@@ -1,10 +1,8 @@
 import { useId, useState, type FormEvent } from 'react'
 import { Check, Plus } from 'lucide-react'
 import { HABIT_ICON_MAP, ICON_CHOICES } from '../lib/icons'
-import { categories, colors, weekdays, type Accent, type Category, type HabitInput, type Schedule } from '../lib/tracking'
+import { categories, colorNames, colors, weekdays, type Accent, type Category, type HabitInput, type Schedule } from '../lib/tracking'
 import { JournalDialog } from './JournalDialog'
-
-const accentNames: Record<Accent, string> = { iris: 'Lilac', aqua: 'Teal', mint: 'Sage', amber: 'Ochre', rose: 'Rose' }
 
 export function TrackerHabitForm({ onSave, onClose, habit }: {
   onSave: (habit: HabitInput) => void
@@ -121,11 +119,25 @@ export function TrackerHabitForm({ onSave, onClose, habit }: {
         <label className="field">Custom icon <input maxLength={32} placeholder="Paste an emoji" value={customIcon} onChange={(event) => setCustomIcon(event.target.value)} /></label>
         <fieldset className="choice-group">
           <legend>Accent color</legend>
-          <div className="chips">
-            {Object.entries(colors).map(([key, hex]) => (
-              <button key={key} type="button" className="color-choice" aria-label={accentNames[key as Accent]} aria-pressed={color === key}
-                onClick={() => setColor(key as Accent)} style={{ backgroundColor: hex }} />
-            ))}
+          <div className="chips color-palette" aria-label="Accent color">
+            {Object.entries(colors).map(([key, hex]) => {
+              const selected = color === key
+              const name = colorNames[key as Accent]
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className="color-choice"
+                  aria-label={name}
+                  title={name}
+                  aria-pressed={selected}
+                  onClick={() => setColor(key as Accent)}
+                  style={{ backgroundColor: hex }}
+                >
+                  {selected && <Check size={14} className="color-check-icon" strokeWidth={3} />}
+                </button>
+              )
+            })}
           </div>
         </fieldset>
         {error && <p className="error" role="alert">{error}</p>}

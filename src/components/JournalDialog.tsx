@@ -14,9 +14,15 @@ export function JournalDialog({ title, subtitle, children, onClose, busy = false
   const descriptionId = useId()
 
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
     const element = dialog.current
     element?.showModal()
-    return () => element?.close()
+    return () => {
+      element?.close()
+      if (previous && typeof previous.focus === 'function') {
+        previous.focus()
+      }
+    }
   }, [])
 
   return (

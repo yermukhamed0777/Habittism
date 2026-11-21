@@ -94,6 +94,11 @@ try {
   const modernLogRow = (await db.query('select value::float8, note, mood from public.habit_logs where day=$1', ['2026-11-18'])).rows[0]
   assert.deepEqual(modernLogRow, { value: 5.2, note: 'Fast pace', mood: 'energized' })
 
+  // Expanded color palette validation
+  await db.query("update public.habits set color='emerald' where id=$1", [aliceHabit])
+  assert.equal((await db.query('select color from public.habits where id=$1', [aliceHabit])).rows[0].color, 'emerald')
+  await assert.rejects(db.query("update public.habits set color='neon-green' where id=$1", [aliceHabit]), { code: '23514' })
+
   const invalidId = '20000000-0000-4000-8000-000000000099'
   await assert.rejects(merge({
     habits: [{ ...habit, id: invalidId }],
