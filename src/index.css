@@ -353,6 +353,27 @@ progress::-moz-progress-bar { background: var(--action); }
 .reflection-fields { display: grid; gap: .45rem; justify-items: start; }
 .reflection-fields textarea { width: 100%; resize: vertical; background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: .5rem; padding: .5rem; }
 .freeze-status { display: inline-flex; align-items: center; gap: .25rem; border-radius: 1rem; padding: .2rem .45rem; background: var(--soft); color: var(--soft-ink); font-size: .75rem; }
+
+.coach {
+  background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--action) 16%, transparent), transparent 68%), var(--glass);
+}
+.coach-action {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  text-align: start;
+  align-items: center;
+  gap: .8rem;
+  width: 100%;
+  padding: .62rem .8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: .75rem;
+  transition: background-color .16s, border-color .16s;
+}
+.coach-action:hover { background: var(--soft); border-color: var(--glass-rim); }
+.coach-action :is(strong, small) { display: block; overflow-wrap: anywhere; }
+.coach-action small, .coach-done { margin-top: .2rem; color: var(--muted); font-size: .85rem; }
+.coach-action > svg { color: var(--action); }
 .milestones { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0; gap: .5rem; }
 .milestones li { display: grid; align-content: start; gap: .22rem; border: 1px solid var(--line); padding: .65rem; border-radius: .65rem; }
 .milestones li[data-reached='true'] { background: var(--soft); color: var(--soft-ink); }

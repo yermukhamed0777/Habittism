@@ -4,15 +4,17 @@ import { completionTrend, type Period } from '../lib/insights'
 import { completionRate, habitStats, scheduleLabel, type Journal } from '../lib/tracking'
 import { EntryIcon } from './HabitEntry'
 import { TrackerCalendar } from './TrackerCalendar'
+import { WeeklyCoach } from './WeeklyCoach'
 
 export function TrackerInsights({ journal, today, onOpenHabit, onSelectDay }: {
   journal: Journal
   today: Date
-  onOpenHabit: (id: string) => void
+  onOpenHabit: (id: string, day?: string) => void
   onSelectDay: (day: string) => void
 }) {
   const [period, setPeriod] = useState<Period>('week')
-  const points = useMemo(() => completionTrend(journal, today, period), [journal, period, today])
+  const weeklyPoints = useMemo(() => completionTrend(journal, today, 'week'), [journal, today])
+  const points = useMemo(() => period === 'week' ? weeklyPoints : completionTrend(journal, today, period), [journal, period, today, weeklyPoints])
   const rows = useMemo(() => journal.habits.map((habit) => ({ habit, ...habitStats(habit, journal.logs[habit.id] ?? {}, today) })), [journal, today])
   const overview = rows.reduce((totals, row) => ({
     count: totals.count + row.total, done: totals.done + row.completed, planned: totals.planned + row.opportunities,
@@ -29,6 +31,7 @@ export function TrackerInsights({ journal, today, onOpenHabit, onSelectDay }: {
         <div className="panel"><span>Check-ins completed</span><strong>{overview.count.toLocaleString()}</strong></div>
         <div className="panel"><span>Habits tracked</span><strong>{rows.length.toLocaleString()}</strong></div>
       </div>
+      <WeeklyCoach journal={journal} today={today} completed={weeklyPoints.at(-1)?.complete ?? 0} onOpenHabit={onOpenHabit} />
       <TrackerCalendar journal={journal} today={today} onSelect={onSelectDay} consistency />
       <section className="panel">
         <div className="panel-heading"><span className="section-icon"><Flame size={19} /></span><div>
