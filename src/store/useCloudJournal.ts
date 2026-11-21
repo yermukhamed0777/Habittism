@@ -141,13 +141,17 @@ function createQueue(repository: HabitRepository, userId: string, onSync: (sync:
       const last = [...pending.values()].at(-1)
       const replace = action.type === 'affirmation' && last?.action.type === 'affirmation'
         && last.action.day === action.day && last.readyAt > timestamp
-      const key = replace ? last.key : prefix + timestamp.toFixed(4).padStart(18, '0') + ':' + crypto.randomUUID()
+      const nextKey = prefix + timestamp.toFixed(4).padStart(18, '0') + ':' + crypto.randomUUID()
+      let key = replace ? last.key : nextKey
       const readyAt = timestamp + (action.type === 'affirmation' ? 650 : 0)
       let stored = false
       try {
         localStorage.setItem(key, JSON.stringify({ action, readyAt }))
         stored = true
-      } catch { /* Keep the pending write in memory until it syncs. */ }
+      } catch {
+        // Keep an earlier durable draft if the replacement could not be saved.
+        if (replace && last.stored) key = nextKey
+      }
       pending.set(key, { key, action, readyAt, stored })
       report()
       void flush()

@@ -30,8 +30,9 @@ To enable GitHub sign-in, create a GitHub OAuth App. Use your Habittism URL as t
 2. Leave **Root Directory** at the repository root and use the **Vite** preset. [vercel.json](vercel.json) sets `npm run build` and the `dist` output directory. The app uses in-page navigation and returns from sign-in at the root URL.
 3. Under **Environment Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` before the first deploy. In an existing project, use **Settings → Environment Variables**, select **Production**, and redeploy after saving. Add the values to **Preview** if you want preview deployments to connect to Supabase. [Vercel environment variables](https://vercel.com/docs/environment-variables)
 4. Deploy. Confirm that **Settings → Environments → Production → Branch Tracking** uses `main`. Future pushes to `main` will deploy to production. [Vercel branch tracking](https://vercel.com/docs/git#customizing-the-production-branch)
-5. Copy the production URL from Vercel. In Supabase **Authentication → URL Configuration**, set it as **Site URL** and add the exact root URL with a trailing slash to **Redirect URLs**. Add any preview URLs you use for auth, and keep `http://localhost:5173/` if you run locally. [Supabase redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls)
-6. On the deployed site, create a test account, confirm email or sign in with GitHub, create a habit, and check that its check-in and today’s affirmation survive a reload.
+5. If you are deploying with a different Supabase project, update the `connect-src` origin in [vercel.json](vercel.json) to match `VITE_SUPABASE_URL`.
+6. Copy the production URL from Vercel. In Supabase **Authentication → URL Configuration**, set it as **Site URL** and add the exact root URL with a trailing slash to **Redirect URLs**. Add any preview URLs you use for auth, and keep `http://localhost:5173/` if you run locally. [Supabase redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls)
+7. On the deployed site, create a test account, confirm email or sign in with GitHub, create a habit, and check that its check-in and today’s affirmation survive a reload.
 
 ## Move data from the previous app
 
@@ -39,7 +40,7 @@ Guest habits, check-ins, and affirmations merge automatically when you sign in i
 
 When you sign in on the same site where you used the browser-only version, choose **Import data** if Habittism finds saved habits, check-ins, or affirmations. The import retains existing cloud entries and can be retried without duplicating records.
 
-If you’re moving from a different address, such as the [previous GitHub Pages site](https://yermukhamed0777.github.io/Habittism/), open that address in the browser that holds your data. Paste the following into its developer console to download a local backup. On the new site, sign in and open **Settings → Import browser backup** to upload it.
+If you’re moving from a different address, such as the [previous GitHub Pages site](https://yermukhamed0777.github.io/Habittism/), open that address in the browser that holds your data. Paste the following into its developer console to download a local backup. On the new site, sign in and open **Settings → Data → Import JSON backup** to upload it.
 
 ```js
 (() => {
@@ -54,6 +55,12 @@ If you’re moving from a different address, such as the [previous GitHub Pages 
 })()
 ```
 
+## Back up and restore data
+
+Use **Settings → Data** to export a JSON backup or CSV spreadsheet. To restore JSON, sign in and choose **Import JSON backup**. The preview lists habits, check-ins, and affirmations before you import. Restoring adds missing records, including numeric goals, schedules, notes, freezes, and archive history. Existing account entries take precedence when you import the same backup again.
+
+If an account write fails, the app keeps the pending change in the current browser and retries after reopening the journal or reconnecting. When browser storage is unavailable, keep the tab open until sync finishes. Guest journals remain available offline after installation assets have loaded.
+
 ## How tracking works
 
 - Dates follow the browser’s local time. A habit starts contributing to scheduled totals on its creation date. Earlier completions you add from habit history appear as optional check-ins.
@@ -64,6 +71,7 @@ If you’re moving from a different address, such as the [previous GitHub Pages 
 - **This week** shows scheduled check-ins and flexible weekly targets together. Open a past or current day to view its check-ins.
 - Archive from **Habits → Active** and restore from **Habits → Archived**. Archive periods start on the current local date and end on the restore date. Paused dates create no missed goals. Earlier counts and streaks are preserved, and weekly quotas are capped at the active days in that week. Older archived habits with no recorded start date retain their check-ins and use only dates with known schedules for totals.
 - Open a habit’s history and choose **Edit details** to change its name, icon, color, or category. These edits preserve the schedule, goal, and history.
+- **Weekly Coach** in Insights summarizes the current week and opens the next due habit for a check-in. It uses your journal on this device.
 - Insights includes rolling 90-day and 365-day heatmaps and celebrates 7-, 30-, and 100-day streaks for daily and weekday habits. Export your habits, check-ins, reflections, and affirmations as JSON or CSV from **Settings → Data**.
 
 ## Verify changes
