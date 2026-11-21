@@ -2,6 +2,16 @@
 
 Habittism is a private habit tracker and affirmation journal. Start immediately as a guest, build a blank journal one habit at a time or choose an optional starter pack, and sign in to sync across devices.
 
+[Open Habittism](https://habittism.vercel.app/)
+
+## Install and launch
+
+Open the live app and choose **Install app** on the guest banner or in **Settings → App**. The browser can add a desktop, Start menu, or home-screen icon. Where supported, the app icon’s shortcuts open [Today’s Focus](https://habittism.vercel.app/?view=today) or the [habit calendar](https://habittism.vercel.app/?view=calendar).
+
+Guest journals can reopen offline after the first visit completes. The app caches the interface and its static assets. Your guest journal stays in browser storage, and account sync uses the network.
+
+Use **Ctrl+K** or **⌘K** to jump to a page, find a habit, or start an action. The search icon opens the same menu on touch devices.
+
 ## Run locally
 
 1. Use Node.js 22.12 or newer and run `npm ci`.
@@ -51,6 +61,9 @@ If you’re moving from a different address, such as the [previous GitHub Pages 
 - Freeze an unfinished scheduled day from habit history to protect the streak. Frozen days stay outside completed totals. For weekly habits, a freeze can excuse one missed day when calculating the streak after the week ends.
 - Numeric goals are complete once the logged amount meets the target. Reminders run in the browser and can notify you once a day while the app is open.
 - Today’s Focus moves partial goals and time-sensitive weekly targets up the queue. Complete a check-in and tap an energy tag or add a short reflection.
+- **This week** shows scheduled check-ins and flexible weekly targets together. Open a past or current day to view its check-ins.
+- Archive from **Habits → Active** and restore from **Habits → Archived**. Archive periods start on the current local date and end on the restore date. Paused dates create no missed goals. Earlier counts and streaks are preserved, and weekly quotas are capped at the active days in that week. Older archived habits with no recorded start date retain their check-ins and use only dates with known schedules for totals.
+- Open a habit’s history and choose **Edit details** to change its name, icon, color, or category. These edits preserve the schedule, goal, and history.
 - Insights includes rolling 90-day and 365-day heatmaps and celebrates 7-, 30-, and 100-day streaks for daily and weekday habits. Export your habits, check-ins, reflections, and affirmations as JSON or CSV from **Settings → Data**.
 
 ## Verify changes
@@ -67,6 +80,9 @@ The browser test starts Vite on a local port and uses isolated Supabase HTTP fix
 ```sh
 npx playwright install chromium
 npm run test:e2e
+npm run test:pwa
 ```
+
+The install test uses the production build to verify the manifest, app icons, and guest launch offline. Run `npm run build` first.
 
 [MIT License](LICENSE)
