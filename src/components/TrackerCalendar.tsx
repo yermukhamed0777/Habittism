@@ -44,6 +44,11 @@ export function TrackerCalendar({ journal, today, onSelect, consistency = false 
   function shift(direction: number) {
     setHover(null)
     setFocus('')
+    // Treat a zero direction explicitly as a reset to the current year
+    if (direction === 0) {
+      setOffset(0)
+      return
+    }
     setOffset((previous) => previous + direction)
   }
 

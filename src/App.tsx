@@ -126,6 +126,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
   const selectedHabit = (dialog?.kind === 'habit' || dialog?.kind === 'edit') && tracker.journal.habits.find((habit) => habit.id === dialog.id)
   const close = () => setDialog(null)
   const openHabit = (id: string, day?: string) => setDialog({ kind: 'habit', id, day })
+  const navigateDay = (day: string) => setDialog({ kind: 'day', day })
   const onAdd = () => setDialog({ kind: 'create' })
   const onInstall = () => setDialog({ kind: 'install' })
   const habitView = { tracker, today, due, onAdd, onOpenHabit: openHabit, onTemplates: () => setDialog({ kind: 'templates' }) }
@@ -257,7 +258,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
       {dialog?.kind === 'habit' && selectedHabit && <TrackerHistory key={selectedHabit.id} tracker={tracker} today={today}
         habit={selectedHabit} initialDay={dialog.day} onClose={close} onEdit={() => setDialog({ kind: 'edit', id: selectedHabit.id })} />}
       {dialog?.kind === 'day' && <TrackerDay tracker={tracker} day={dialog.day} today={today} onClose={close}
-        onOpenHabit={openHabit} entries={(date) => dayEntries(tracker.journal, date, today)} />}
+        onOpenHabit={openHabit} onNavigate={navigateDay} entries={(date) => dayEntries(tracker.journal, date, today)} />}
       {dialog?.kind === 'import' && <LegacyImport browserBackup={browserBackup} today={toKey(today)} email={session?.user.email} onImport={importBackup} onClose={close} />}
       {dialog?.kind === 'importing' && <JournalDialog title="Importing previous data" onClose={close} busy><p role="status">Moving your habits, check-ins, and affirmations to this account…</p></JournalDialog>}
       {dialog?.kind === 'settings' && <JournalDialog title="Settings" subtitle={session?.user.email} onClose={close}>

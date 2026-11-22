@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { addDays, addMonths, endOfMonth, format, startOfMonth } from 'date-fns'
-import { ChevronLeft, ChevronRight, PenLine, Snowflake, Trash2 } from 'lucide-react'
+import { addDays, addMonths, endOfMonth, format, startOfMonth, subDays } from 'date-fns'
+import { ChevronLeft, ChevronRight, PenLine, Snowflake, Trash2, CalendarDays } from 'lucide-react'
 import { fromKey, startOfWeekMonday, toKey } from '../lib/dates'
 import { formatDay, habitStats, isActiveOn, isComplete, isScheduled, scheduleLabel, updateProgress, weekdays, type HabitLog, type TrackedHabit } from '../lib/tracking'
 import type { CloudJournal } from '../store/useCloudJournal'
@@ -119,12 +119,13 @@ export function TrackerHistory({ tracker, habit, today, initialDay, onClose, onE
   )
 }
 
-export function TrackerDay({ tracker, day, today, onClose, onOpenHabit, entries }: {
+export function TrackerDay({ tracker, day, today, onClose, onOpenHabit, onNavigate, entries }: {
   tracker: CloudJournal
   day: string
   today: Date
   onClose: () => void
   onOpenHabit: (id: string, day: string) => void
+  onNavigate: (day: string) => void
   entries: (date: Date) => { habit: TrackedHabit; log?: HabitLog; done: boolean; unfinished: boolean }[]
 }) {
   const date = fromKey(day)
@@ -136,6 +137,18 @@ export function TrackerDay({ tracker, day, today, onClose, onOpenHabit, entries 
 
   return (
     <JournalDialog title={formatDay(date)} subtitle={`${done} completed · ${unfinished} unfinished${frozen ? ` · ${frozen} frozen` : ''}`} onClose={onClose}>
+      {/* Day navigation controls */}
+      <div className="day-nav flex items-center gap-2 mb-2">
+        <button type="button" className="icon-button" aria-label="Previous day" onClick={() => onNavigate(toKey(subDays(date, 1)))}>
+          <ChevronLeft size={16} />
+        </button>
+        <button type="button" className="icon-button" aria-label="Today" onClick={() => onNavigate(toKey(today))}>
+          <CalendarDays size={16} />
+        </button>
+        <button type="button" className="icon-button" aria-label="Next day" onClick={() => onNavigate(toKey(addDays(date, 1)))}>
+          <ChevronRight size={16} />
+        </button>
+      </div>
       {items.length ? (
         <ul className="habit-list day-list">
           {items.map(({ habit, log, unfinished: pending, done: complete }) => (
