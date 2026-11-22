@@ -79,13 +79,57 @@ export function TrackerCalendar({ journal, today, onSelect, consistency = false 
             <h2>{consistency ? 'Consistency heatmap' : 'Activity calendar'}</h2>
             <p>{consistency ? `${format(fromKey(startKey), 'MMM d, yyyy')} – ${format(today, 'MMM d, yyyy')}` : range}</p>
           </div></div>
-          {consistency ? <div className="chips">
-            <button className="pill" type="button" aria-pressed={period === 90} onClick={() => changePeriod(90)}>90 days</button>
-            <button className="pill" type="button" aria-pressed={period === 365} onClick={() => changePeriod(365)}>Annual</button>
-          </div> : <div className="calendar-nav">
-            <button className="icon-button" type="button" aria-label="Previous year" onClick={() => shift(-1)}><ChevronLeft size={19} /></button>
-            <button className="icon-button" type="button" aria-label="Next year" disabled={offset === 0} onClick={() => shift(1)}><ChevronRight size={19} /></button>
-          </div>}
+          {consistency ? (
+            <div className="chips">
+              <button
+                className="pill"
+                type="button"
+                aria-pressed={period === 90}
+                onClick={() => changePeriod(90)}
+              >
+                90 days
+              </button>
+              <button
+                className="pill"
+                type="button"
+                aria-pressed={period === 365}
+                onClick={() => changePeriod(365)}
+              >
+                Annual
+              </button>
+            </div>
+          ) : (
+            <div className="calendar-nav flex items-center gap-3">
+              <button
+                className="icon-button"
+                type="button"
+                aria-label={`Go to today, ${format(today, 'EEE d')}`}
+                onClick={() => shift(0)}
+              >
+                <CalendarDays size={19} />
+              </button>
+              <span className="tiny-text-muted">{format(today, 'MMM d')}</span>
+              <div className="flex gap-2">
+                <button
+                  className="icon-button"
+                  type="button"
+                  aria-label={`Previous year, ${format(addYears(start, -1), 'MMM yyyy')}`}
+                  onClick={() => shift(-1)}
+                >
+                  <ChevronLeft size={19} />
+                </button>
+                <button
+                  className={`icon-button ${offset === 0 ? 'opacity-40' : ''}`}
+                  type="button"
+                  aria-label={`Next year, ${format(addYears(start, 1), 'MMM yyyy')}`}
+                  disabled={offset === 0}
+                  onClick={() => shift(1)}
+                >
+                  <ChevronRight size={19} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <div className="heat-scroll" ref={scroller} onScroll={() => setHover(null)}>
           <div className={weekCount === 14 ? 'heat-grid heat-grid-short' : 'heat-grid'} role="group"
