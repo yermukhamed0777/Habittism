@@ -467,6 +467,28 @@ try {
   assert.equal(tables.habit_logs.get(saved.id + ':2026-11-21').frozen, true)
   console.log('PASS modern JSON restore preserves numeric goals, archive history, and reflections')
 
+  // --- Calendar navigation tests ---
+  // Verify Previous year → Go to today returns to current year range.
+  await navigate('Calendar')
+  await page.getByRole('button', { name: /Previous year/i }).click()
+  await page.getByText('Nov 2025').waitFor()
+  await page.getByRole('button', { name: /Go to today/i }).click()
+  await page.getByText('Nov 2026').waitFor()
+  // Verify day dialog navigation: Previous day, Next day, Today controls.
+  // Open day dialog for 2026-11-19
+  await page.locator('[data-date="2026-11-19"]').click()
+  await page.getByRole('dialog').waitFor({ state: 'visible' })
+  await page.getByRole('heading', { name: /Nov 19, 2026/, exact: false }).waitFor()
+  await page.getByRole('button', { name: 'Previous day', exact: true }).click()
+  await page.getByRole('heading', { name: /Nov 18, 2026/, exact: false }).waitFor()
+  await page.getByRole('button', { name: 'Next day', exact: true }).click()
+  await page.getByRole('heading', { name: /Nov 19, 2026/, exact: false }).waitFor()
+  await page.getByRole('button', { name: 'Today', exact: true }).click()
+  await page.getByRole('heading', { name: /Nov 20, 2026/, exact: false }).waitFor()
+  // Close dialog
+  await close()
+  // End of calendar tests
+
   assert.deepEqual(errors, [])
   console.log('PASS mobile layout, reminders, file import, guest templates, keyboard check-ins, reflections, exports, and OAuth guest merge')
 } finally {
