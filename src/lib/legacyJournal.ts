@@ -2,7 +2,7 @@ import { fromKey, toKey } from './dates'
 import { habitFields } from './habitRepository'
 import { colors, type Accent, type Category } from './tracking'
 
-const storageKey = 'habittism-store-v1'
+const storageKey = 'hexis-store-v1'
 const legacyCategories: Record<string, Category> = {
   mind: 'mindset', body: 'fitness', craft: 'focus', social: 'custom', system: 'custom',
 }
@@ -89,9 +89,9 @@ export function readBrowserBackup(today: string) {
 }
 
 export function browserBackupImported(userId: string) {
-  try { return localStorage.getItem(`habittism-imported:${userId}`) === 'yes' } catch { return false }
+  try { return localStorage.getItem(`hexis-imported:${userId}`) === 'yes' } catch { return false }
 }
 
 export function markBrowserBackupImported(userId: string) {
-  try { localStorage.setItem(`habittism-imported:${userId}`, 'yes') } catch { /* Import remains idempotent. */ }
+  try { localStorage.setItem(`hexis-imported:${userId}`, 'yes') } catch { /* Import remains idempotent. */ }
 }

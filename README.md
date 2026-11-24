@@ -1,12 +1,12 @@
-# Habittism
+# Hexis
 
-Habittism is a private habit tracker and affirmation journal. Start immediately as a guest, build a blank journal one habit at a time or choose an optional starter pack, and sign in to sync across devices.
+Hexis is a private habit tracker and affirmation journal. Start immediately as a guest, build a blank journal one habit at a time or choose an optional starter pack, and sign in to sync across devices.
 
-[Open Habittism](https://habittism.vercel.app/)
+[Open Hexis](https://hexis.vercel.app/)
 
 ## Install and launch
 
-Open the live app and choose **Install app** on the guest banner or in **Settings → App**. The browser can add a desktop, Start menu, or home-screen icon. Where supported, the app icon’s shortcuts open [Today’s Focus](https://habittism.vercel.app/?view=today) or the [habit calendar](https://habittism.vercel.app/?view=calendar).
+Open the live app and choose **Install app** on the guest banner or in **Settings → App**. The browser can add a desktop, Start menu, or home-screen icon. Where supported, the app icon’s shortcuts open [Today’s Focus](https://hexis.vercel.app/?view=today) or the [habit calendar](https://hexis.vercel.app/?view=calendar).
 
 Guest journals can reopen offline after the first visit completes. The app caches the interface and its static assets. Your guest journal stays in browser storage, and account sync uses the network.
 
@@ -22,11 +22,11 @@ Use **Ctrl+K** or **⌘K** to jump to a page, find a habit, or start an action. 
 
 Email and password, email confirmation, magic links, password reset, and GitHub sign-in use Supabase Auth. For public email delivery, configure **Custom SMTP** in Supabase Authentication. The default mail service only delivers to authorized project team addresses. [Supabase SMTP setup](https://supabase.com/docs/guides/auth/auth-smtp)
 
-To enable GitHub sign-in, create a GitHub OAuth App. Use your Habittism URL as the homepage and copy the callback URL from Supabase’s **GitHub** auth provider into the OAuth App’s **Authorization callback URL**. Enable the provider in Supabase and enter the GitHub client ID and secret there. [Supabase GitHub sign-in setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-github)
+To enable GitHub sign-in, create a GitHub OAuth App. Use your Hexis URL as the homepage and copy the callback URL from Supabase’s **GitHub** auth provider into the OAuth App’s **Authorization callback URL**. Enable the provider in Supabase and enter the GitHub client ID and secret there. [Supabase GitHub sign-in setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-github)
 
 ## Deploy on Vercel
 
-1. Complete the Supabase schema and auth setup above. In Vercel, select **Add New → Project**, connect GitHub, and import `yermukhamed0777/Habittism`. If the repository is missing from the list, grant the Vercel GitHub App access to it. [Vercel GitHub integration](https://vercel.com/docs/git/vercel-for-github)
+1. Complete the Supabase schema and auth setup above. In Vercel, select **Add New → Project**, connect GitHub, and import `yermukhamed0777/Hexis`. If the repository is missing from the list, grant the Vercel GitHub App access to it. [Vercel GitHub integration](https://vercel.com/docs/git/vercel-for-github)
 2. Leave **Root Directory** at the repository root and use the **Vite** preset. [vercel.json](vercel.json) sets `npm run build` and the `dist` output directory. The app uses in-page navigation and returns from sign-in at the root URL.
 3. Under **Environment Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` before the first deploy. In an existing project, use **Settings → Environment Variables**, select **Production**, and redeploy after saving. Add the values to **Preview** if you want preview deployments to connect to Supabase. [Vercel environment variables](https://vercel.com/docs/environment-variables)
 4. Deploy. Confirm that **Settings → Environments → Production → Branch Tracking** uses `main`. Future pushes to `main` will deploy to production. [Vercel branch tracking](https://vercel.com/docs/git#customizing-the-production-branch)
@@ -38,18 +38,18 @@ To enable GitHub sign-in, create a GitHub OAuth App. Use your Habittism URL as t
 
 Guest habits, check-ins, and affirmations merge automatically when you sign in in the browser where you created them. A merge adds guest records alongside existing habits. If both journals have an affirmation on the same date, the account’s entry takes precedence.
 
-When you sign in on the same site where you used the browser-only version, choose **Import data** if Habittism finds saved habits, check-ins, or affirmations. The import retains existing cloud entries and can be retried without duplicating records.
+When you sign in on the same site where you used the browser-only version, choose **Import data** if Hexis finds saved habits, check-ins, or affirmations. The import retains existing cloud entries and can be retried without duplicating records.
 
-If you’re moving from a different address, such as the [previous GitHub Pages site](https://yermukhamed0777.github.io/Habittism/), open that address in the browser that holds your data. Paste the following into its developer console to download a local backup. On the new site, sign in and open **Settings → Data → Import JSON backup** to upload it.
+If you’re moving from a different address, such as the [previous GitHub Pages site](https://yermukhamed0777.github.io/Hexis/), open that address in the browser that holds your data. Paste the following into its developer console to download a local backup. On the new site, sign in and open **Settings → Data → Import JSON backup** to upload it.
 
 ```js
 (() => {
-  const backup = localStorage.getItem('habittism-store-v1')
-  if (!backup) throw new Error('No Habittism backup was found in this browser.')
+  const backup = localStorage.getItem('hexis-store-v1')
+  if (!backup) throw new Error('No Hexis backup was found in this browser.')
   const url = URL.createObjectURL(new Blob([backup], { type: 'application/json' }))
   const link = document.createElement('a')
   link.href = url
-  link.download = 'habittism-backup.json'
+  link.download = 'hexis-backup.json'
   link.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 })()

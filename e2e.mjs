@@ -6,12 +6,12 @@ import { createServer } from 'vite'
 
 // Run with Node and Chromium from Playwright. The test provides its own
 // Supabase HTTP fixtures and leaves any configured project untouched.
-const { chromium } = await import(process.env.HABITTISM_PLAYWRIGHT
-  ? pathToFileURL(process.env.HABITTISM_PLAYWRIGHT).href
+const { chromium } = await import(process.env.HEXIS_PLAYWRIGHT
+  ? pathToFileURL(process.env.HEXIS_PLAYWRIGHT).href
   : 'playwright')
-const origin = 'https://habittism-test.supabase.co'
+const origin = 'https://hexis-test.supabase.co'
 process.env.VITE_SUPABASE_URL = origin
-process.env.VITE_SUPABASE_ANON_KEY = 'sb_publishable_habittism_smoke_test'
+process.env.VITE_SUPABASE_ANON_KEY = 'sb_publishable_hexis_smoke_test'
 
 const server = await createServer({ logLevel: 'error', server: { host: '127.0.0.1', port: 0 } })
 await server.listen()
@@ -142,7 +142,7 @@ try {
   await page.clock.setFixedTime(new Date('2026-11-20T09:30:00+08:00'))
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
-  const shots = process.env.HABITTISM_TEST_SCREENSHOTS
+  const shots = process.env.HEXIS_TEST_SCREENSHOTS
   if (shots) await mkdir(shots, { recursive: true })
   const screenshot = async (name) => { if (shots) await page.screenshot({ path: join(shots, `${name}.png`), fullPage: true, animations: 'disabled' }) }
 
@@ -270,7 +270,7 @@ try {
   await page.getByRole('textbox', { name: 'Daily affirmation' }).fill('The journal survives a reload.')
   await page.getByRole('button', { name: 'Retry sync' }).waitFor()
   await page.evaluate(() => {
-    localStorage.setItem('habittism-outbox-v1:a-different-account:0001', JSON.stringify({
+    localStorage.setItem('hexis-outbox-v1:a-different-account:0001', JSON.stringify({
       action: { type: 'affirmation', day: '2026-11-20', body: 'Another account’s draft' }, readyAt: 0,
     }))
   })
@@ -278,12 +278,12 @@ try {
   await synced()
   assert.equal(await page.getByRole('textbox', { name: 'Daily affirmation' }).inputValue(), 'The journal survives a reload.')
   assert.equal(tables.daily_affirmations.get('2026-11-20').body, 'The journal survives a reload.')
-  assert.ok(await page.evaluate(() => localStorage.getItem('habittism-outbox-v1:a-different-account:0001')))
-  assert.equal(await page.evaluate((id) => Object.keys(localStorage).some((key) => key.startsWith('habittism-outbox-v1:' + id + ':')), user.id), false)
+  assert.ok(await page.evaluate(() => localStorage.getItem('hexis-outbox-v1:a-different-account:0001')))
+  assert.equal(await page.evaluate((id) => Object.keys(localStorage).some((key) => key.startsWith('hexis-outbox-v1:' + id + ':')), user.id), false)
   console.log('PASS durable pending writes replay after reload for their owning account')
 
   await page.evaluate(() => {
-    localStorage.setItem('habittism-store-v1', JSON.stringify({ state: {
+    localStorage.setItem('hexis-store-v1', JSON.stringify({ state: {
       habits: [{ id: 'legacy', name: 'Evening journal', icon: 'pen', category: 'mind', color: 'iris', targetPerWeek: 7, createdAt: '2026-11-17', archived: false }],
       completions: { legacy: ['2026-11-17', '2026-11-19'] },
       affirmations: { '2026-11-19': 'Write a little.' },
@@ -318,11 +318,11 @@ try {
   await page.getByText('Reminder saved.').waitFor()
   await page.waitForFunction(async () => {
     const registration = await navigator.serviceWorker.getRegistration()
-    return registration && (await registration.getNotifications()).some((notice) => notice.tag === 'habittism-daily-reminder')
+    return registration && (await registration.getNotifications()).some((notice) => notice.tag === 'hexis-daily-reminder')
   })
   await page.getByRole('button', { name: 'Turn off' }).click()
   await page.getByRole('button', { name: 'Import JSON backup' }).click()
-  await page.getByLabel('Habittism backup file').setInputFiles({
+  await page.getByLabel('Hexis backup file').setInputFiles({
     name: 'old-browser.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({ state: { affirmations: { '2026-11-15': 'I can begin again.' } }, version: 7 })),
@@ -374,7 +374,7 @@ try {
   assert.equal(merged.note, '=Better, "one sip at a time"')
   assert.equal(merged.mood, 'steady')
   assert.equal(tables.habits.size, 6)
-  assert.equal(await page.evaluate(() => localStorage.getItem('habittism-guest-v1')), null)
+  assert.equal(await page.evaluate(() => localStorage.getItem('hexis-guest-v1')), null)
   await page.reload()
   await page.getByLabel('Reflection for Drink water').click()
   assert.equal(await page.getByRole('textbox', { name: 'Daily note', exact: true }).inputValue(), '=Better, "one sip at a time"')
@@ -443,16 +443,16 @@ try {
     ...restore.logs[guestHabit.id],
     '2026-11-21': { value: 0, frozen: true },
   }
-  const importFile = (data) => page.getByLabel('Habittism backup file').setInputFiles({
+  const importFile = (data) => page.getByLabel('Hexis backup file').setInputFiles({
     name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)),
   })
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('button', { name: 'Import JSON backup' }).click()
   await importFile({ ...restore, version: 2 })
-  await page.getByText('This Habittism backup version is unsupported.').waitFor()
+  await page.getByText('This Hexis backup version is unsupported.').waitFor()
   assert.equal(await page.getByRole('button', { name: 'Import data', exact: true }).isDisabled(), true)
   await importFile({ ...restore, logs: { ...restore.logs, [sourceId]: { '2026-11-20': { value: 'broken' } } } })
-  await page.getByText(/backup contains invalid Habittism records/).waitFor()
+  await page.getByText(/backup contains invalid Hexis records/).waitFor()
   assert.equal(await page.getByRole('button', { name: 'Import data', exact: true }).isDisabled(), true)
   await importFile(restore)
   await page.getByText(/3 habits.*2 numeric.*1 archived/).waitFor()

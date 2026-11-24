@@ -3,7 +3,7 @@ import { parseLegacyJournal, type LegacyJournal } from './legacyJournal'
 import { categories, colors, moods, type ArchivePeriod, type HabitLog, type Journal, type TrackedHabit } from './tracking'
 
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
-const invalid = 'The backup contains invalid Habittism records. No data was imported.'
+const invalid = 'The backup contains invalid Hexis records. No data was imported.'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -56,11 +56,11 @@ export function parseBackup(raw: string, today: string): ImportData {
   if (!isRecord(value)) throw new Error(invalid)
   if (!Object.hasOwn(value, 'logs')) {
     const legacy = parseLegacyJournal(raw, today)
-    if (!legacy) throw new Error('This file has no Habittism records to import.')
+    if (!legacy) throw new Error('This file has no Hexis records to import.')
     return { format: 'legacy', data: legacy }
   }
 
-  if (value.version !== 1) throw new Error('This Habittism backup version is unsupported.')
+  if (value.version !== 1) throw new Error('This Hexis backup version is unsupported.')
   const { habits, logs, affirmations } = value
   if (!Array.isArray(habits) || !habits.every(validHabit) || !isRecord(logs) || !isRecord(affirmations)) throw new Error(invalid)
   const ids = new Set(habits.map(({ id }) => id))
@@ -83,7 +83,7 @@ export function parseBackup(raw: string, today: string): ImportData {
     if (body.trim()) checkedAffirmations[day] = body
   }
   const noteCount = Object.keys(checkedAffirmations).length
-  if (!habits.length && !noteCount) throw new Error('This backup has no Habittism records to import.')
+  if (!habits.length && !noteCount) throw new Error('This backup has no Hexis records to import.')
 
   return {
     format: 'modern',

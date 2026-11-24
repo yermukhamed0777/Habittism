@@ -44,7 +44,7 @@ export function downloadJournal(journal: Journal, format: 'json' | 'csv', date: 
   }))
   const link = document.createElement('a')
   link.href = url
-  link.download = `habittism-${date}.${format}`
+  link.download = `hexis-${date}.${format}`
   link.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

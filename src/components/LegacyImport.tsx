@@ -71,10 +71,10 @@ export function LegacyImport({ browserBackup, today, email, onImport, onClose }:
     <JournalDialog title="Import a backup" subtitle={email ? `Import into ${email}` : 'Import into your current account'} onClose={onClose} busy={importing}>
       <div className="import-form">
         {preview}
-        <label className="field">{browserBackup ? 'Or choose a backup file' : 'Habittism backup file'}
+        <label className="field">{browserBackup ? 'Or choose a backup file' : 'Hexis backup file'}
           <input type="file" accept=".json,application/json" onChange={(event) => void readFile(event)} disabled={importing || loadingFile} />
         </label>
-        <p>Adds missing records from a Habittism JSON export or older browser backup. Existing check-ins and affirmations are kept.</p>
+        <p>Adds missing records from a Hexis JSON export or older browser backup. Existing check-ins and affirmations are kept.</p>
         {error && <p className="error" role="alert">{error}</p>}
       </div>
       <div className="dialog-actions">

@@ -1,6 +1,6 @@
 import type { Journal } from './tracking'
 
-const key = 'habittism-guest-v1'
+const key = 'hexis-guest-v1'
 
 interface GuestData {
   journal: Journal

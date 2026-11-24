@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 
 function installableShell(): Plugin {
   return {
-    name: 'habittism-app-shell',
+    name: 'hexis-app-shell',
     apply: 'build',
     enforce: 'post',
     generateBundle(_, bundle) {
@@ -24,7 +24,7 @@ function installableShell(): Plugin {
 }
 
 export default defineConfig({
-  base: process.env.HABITTISM_BASE_PATH ?? '/',
+  base: process.env.HEXIS_BASE_PATH ?? '/',
   plugins: [react(), installableShell()],
   server: {
     port: 5173,

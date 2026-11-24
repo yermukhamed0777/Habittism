@@ -21,7 +21,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
     <main className="auth-shell">
       <div className="auth-card">
         <div className="auth-top"><div className="auth-brand">
-          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={34} height={34} /> Habittism
+          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={34} height={34} /> Hexis
         </div><ThemeToggle /></div>
         {children}
       </div>

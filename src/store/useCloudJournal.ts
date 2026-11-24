@@ -68,7 +68,7 @@ function readPending(prefix: string): Pending[] {
 }
 
 function createQueue(repository: HabitRepository, userId: string, onSync: (sync: Sync) => void, onRecover: (actions: Action[]) => void) {
-  const prefix = 'habittism-outbox-v1:' + userId + ':'
+  const prefix = 'hexis-outbox-v1:' + userId + ':'
   const pending = new Map<string, Pending>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let active = false

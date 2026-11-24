@@ -150,7 +150,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
     ...navigation.map(({ id, label, icon }) => ({ id, label, icon, detail: 'Page', run: () => openView(id) })),
     { id: 'new', label: 'New habit', detail: 'Action', icon: Plus, run: onAdd },
     { id: 'settings', label: 'Settings', detail: 'Action', icon: Settings, run: () => setDialog({ kind: 'settings' }) },
-    { id: 'install', label: 'Install Habittism', detail: 'Action', icon: Download, run: onInstall },
+    { id: 'install', label: 'Install Hexis', detail: 'Action', icon: Download, run: onInstall },
     ...tracker.journal.habits.map((habit) => ({
       id: habit.id, label: habit.name, icon: Target, detail: habit.archived ? 'Archived habit' : 'Habit',
       run: () => openHabit(habit.id),
@@ -202,7 +202,7 @@ function Dashboard({ account, initial, openAccount, merged }: {
       <header className="site-header">
         <div className="header-inner">
           <button className="brand" type="button" onClick={() => openView('greeting')}>
-            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={37} height={37} /> Habittism
+            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={37} height={37} /> Hexis
           </button>
           <nav className="main-nav" aria-label="Workspace">
             {navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-current={view === id ? 'page' : undefined}
@@ -225,14 +225,14 @@ function Dashboard({ account, initial, openAccount, merged }: {
           {tracker.sync.pending ? 'Saving changes…' : account ? 'All changes synced' : 'Guest journal'}
         </div>}
         {!account && <section className="import-banner">
-          <div><strong>Try Habittism as a guest</strong><p>Sign in or create an account to sync this journal across devices.</p></div>
+          <div><strong>Try Hexis as a guest</strong><p>Sign in or create an account to sync this journal across devices.</p></div>
           <div className="chips">
             {installState !== 'installed' && <button className="secondary" type="button" onClick={onInstall}><Download size={16} /> Install app</button>}
             <button className="primary" type="button" onClick={openAccount}>Sign in or sign up</button>
           </div>
         </section>}
         {browserBackup && showImport && <section className="import-banner">
-          <div><strong>Import your saved habits and affirmations</strong><p>Move this browser’s previous Habittism data into {session?.user.email ?? 'your account'}.</p>
+          <div><strong>Import your saved habits and affirmations</strong><p>Move this browser’s previous Hexis data into {session?.user.email ?? 'your account'}.</p>
             {importError && <p className="error" role="alert">{importError}</p>}
           </div>
           <div className="chips">

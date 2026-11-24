@@ -19,7 +19,7 @@ try {
   })
   const response = await page.goto(url)
   assert.equal(response.headers()['content-security-policy'], headers['Content-Security-Policy'])
-  await page.getByText('Try Habittism as a guest').waitFor()
+  await page.getByText('Try Hexis as a guest').waitFor()
   await page.waitForFunction(() => navigator.serviceWorker.controller?.scriptURL.endsWith('/app-worker.js'))
 
   await page.locator('header').getByRole('button', { name: 'New habit' }).click()
@@ -45,7 +45,7 @@ try {
   }
 
   await page.getByRole('button', { name: 'Install app', exact: true }).click()
-  await page.getByRole('heading', { name: 'Install Habittism', exact: true }).waitFor()
+  await page.getByRole('heading', { name: 'Install Hexis', exact: true }).waitFor()
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.getByRole('navigation').getByRole('button', { name: 'Greeting' }).click()
   await page.getByRole('textbox', { name: 'Daily affirmation' }).fill('Keep going, even offline.')

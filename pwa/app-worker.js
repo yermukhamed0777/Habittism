@@ -1,6 +1,6 @@
 importScripts('./reminder-worker.js')
 
-const cachePrefix = `habittism-shell:${self.registration.scope}:`
+const cachePrefix = `hexis-shell:${self.registration.scope}:`
 const cacheName = cachePrefix + shellVersion
 const shellUrl = self.registration.scope
 const shellPaths = new Set(shellAssets.map((path) => new URL(path, shellUrl).href))

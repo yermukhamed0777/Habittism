@@ -1,6 +1,9 @@
 name: Deploy to GitHub Pages
 
-on: workflow_dispatch
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,7 +19,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     env:
-      HABITTISM_BASE_PATH: /Habittism/
+      HEXIS_BASE_PATH: /Hexis/
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
     steps:

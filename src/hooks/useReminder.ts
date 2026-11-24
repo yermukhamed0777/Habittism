@@ -20,10 +20,10 @@ function readPreference(key: string): Preference {
 }
 
 async function notify(outstanding: number) {
-  const title = 'Habittism habit reminder'
+  const title = 'Hexis habit reminder'
   const options = {
     body: `You have ${outstanding} unfinished ${outstanding === 1 ? 'habit' : 'habits'} today.`,
-    tag: 'habittism-daily-reminder',
+    tag: 'hexis-daily-reminder',
   }
 
   if ('serviceWorker' in navigator) {
@@ -38,7 +38,7 @@ async function notify(outstanding: number) {
 }
 
 export function useReminder(userId: string, outstanding: number) {
-  const key = `habittism-reminder-v1:${userId}`
+  const key = `hexis-reminder-v1:${userId}`
   const [preference, setPreference] = useState(() => readPreference(key))
   const [error, setError] = useState('')
   const supported = 'Notification' in window && window.isSecureContext
@@ -86,7 +86,7 @@ export function useReminder(userId: string, outstanding: number) {
       try {
         const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
         if (permission !== 'granted') {
-          setError('Allow notifications for Habittism in your browser settings to enable reminders.')
+          setError('Allow notifications for Hexis in your browser settings to enable reminders.')
           return false
         }
       } catch {

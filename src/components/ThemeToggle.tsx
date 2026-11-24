@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 
-const themeKey = 'habittism-theme'
+const themeKey = 'hexis-theme'
 
 function initialTheme() {
   try {
