@@ -1,8 +1,12 @@
 # Hexis
 
+[![CI](https://github.com/yermukhamed0777/Hexis/actions/workflows/ci.yml/badge.svg)](https://github.com/yermukhamed0777/Hexis/actions/workflows/ci.yml)
+
 Hexis is a private habit tracker and affirmation journal. Start immediately as a guest, build a blank journal one habit at a time or choose an optional starter pack, and sign in to sync across devices.
 
 [Open Hexis](https://hexis.vercel.app/)
+
+Long-term planning, decision history, and session logs live in [`plan/`](plan/README.md). Contribution and verification rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Third-party components are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Install and launch
 
@@ -10,7 +14,7 @@ Open the live app and choose **Install app** on the guest banner or in **Setting
 
 Guest journals can reopen offline after the first visit completes. The app caches the interface and its static assets. Your guest journal stays in browser storage, and account sync uses the network.
 
-Use **Ctrl+K** or **⌘K** to jump to a page, find a habit, or start an action. The search icon opens the same menu on touch devices.
+Use **Ctrl+K** or **⌘K** to jump to a page, find a habit, or start an action. The search icon opens the same menu on touch devices where the header has room; that icon is hidden below 303 px.
 
 ## Run locally
 
@@ -33,6 +37,12 @@ To enable GitHub sign-in, create a GitHub OAuth App. Use your Hexis URL as the h
 5. If you are deploying with a different Supabase project, update the `connect-src` origin in [vercel.json](vercel.json) to match `VITE_SUPABASE_URL`.
 6. Copy the production URL from Vercel. In Supabase **Authentication → URL Configuration**, set it as **Site URL** and add the exact root URL with a trailing slash to **Redirect URLs**. Add any preview URLs you use for auth, and keep `http://localhost:5173/` if you run locally. [Supabase redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls)
 7. On the deployed site, create a test account, confirm email or sign in with GitHub, create a habit, and check that its check-in and today’s affirmation survive a reload.
+
+## Deploy to GitHub Pages
+
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) deploys `main` to `https://yermukhamed0777.github.io/Hexis/` on every push and on manual dispatch. It builds with `HEXIS_BASE_PATH=/Hexis/` so asset URLs use the `/Hexis/` subpath, and it reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from Actions repository variables (**Settings → Secrets and variables → Actions → Variables**). Set those two variables before relying on account sync; with no values, `src/lib/supabase.ts` leaves the client unset and the build is guest-only. The separate **CI** workflow runs lint, build, and tests but does not gate this deployment.
+
+The headers in [`vercel.json`](vercel.json) are Vercel configuration; the Pages workflow does not copy them into Pages configuration. The CSP assertions in `test/pwa.mjs` therefore describe the Vercel target, not the Pages target.
 
 ## Move data from the previous app
 
@@ -65,14 +75,14 @@ If an account write fails, the app keeps the pending change in the current brows
 
 - Dates follow the browser’s local time. A habit starts contributing to scheduled totals on its creation date. Earlier completions you add from habit history appear as optional check-ins.
 - Daily and weekday habits count streaks in consecutive scheduled check-ins. Flexible goals count distinct completed days towards a Monday–Sunday target and measure streaks in weeks. The first week’s target is capped at the number of days left. Flexible goals appear in Today while the target is open, and the calendar counts their check-ins on the dates you logged them.
-- Freeze an unfinished scheduled day from habit history to protect the streak. Frozen days stay outside completed totals. For weekly habits, a freeze can excuse one missed day when calculating the streak after the week ends.
+- Freeze an unfinished scheduled day from habit history to protect the streak. Frozen days stay outside completed totals. For weekly habits, frozen days also count toward the weekly total when the streak is calculated after the week ends; multiple freezes can therefore excuse multiple missed days (tracked as `P0-6` in [`plan/backlog.md`](plan/backlog.md)).
 - Numeric goals are complete once the logged amount meets the target. Reminders run in the browser and can notify you once a day while the app is open.
 - Today’s Focus moves partial goals and time-sensitive weekly targets up the queue. Complete a check-in and tap an energy tag or add a short reflection.
 - **This week** shows scheduled check-ins and flexible weekly targets together. Open a past or current day to view its check-ins.
-- Archive from **Habits → Active** and restore from **Habits → Archived**. Archive periods start on the current local date and end on the restore date. Paused dates create no missed goals. Earlier counts and streaks are preserved, and weekly quotas are capped at the active days in that week. Older archived habits with no recorded start date retain their check-ins and use only dates with known schedules for totals.
+- Archive from **Habits → Active** and restore from **Habits → Archived**. Archive periods start on the current local date and end on the restore date. Paused dates create no missed goals. Earlier counts and streaks are preserved, and weekly quotas are capped at the active days in that week. Older archived habits with no recorded start date retain their check-ins but contribute no scheduled totals (`P0-7` in [`plan/backlog.md`](plan/backlog.md)).
 - Open a habit’s history and choose **Edit details** to change its name, icon, color, or category. These edits preserve the schedule, goal, and history.
-- **Weekly Coach** in Insights summarizes the current week and opens the next due habit for a check-in. It uses your journal on this device.
-- Insights includes rolling 90-day and 365-day heatmaps and celebrates 7-, 30-, and 100-day streaks for daily and weekday habits. Export your habits, check-ins, reflections, and affirmations as JSON or CSV from **Settings → Data**.
+- **Weekly Coach** in Insights summarizes the current week and opens the next due habit for a check-in. It uses the journal currently loaded in the app: the guest journal on this device, or your synced account journal.
+- Insights includes rolling 90-day and 365-day heatmaps and shows 7-, 30-, and 100-day streak milestones for daily and weekday habits. Export your habits, check-ins, reflections, and affirmations as JSON or CSV from **Settings → Data**.
 
 ## Verify changes
 

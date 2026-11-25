@@ -32,3 +32,7 @@ supabase/.temp/
 .tmp-shots
 shots
 ChatGPT/
+
+# unrelated local research trees (not part of Hexis)
+synodos/
+.workbuddy-ai/
