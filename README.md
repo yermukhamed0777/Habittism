@@ -4,13 +4,13 @@
 
 Hexis is a private habit tracker and affirmation journal. Start immediately as a guest, build a blank journal one habit at a time or choose an optional starter pack, and sign in to sync across devices.
 
-[Open Hexis](https://hexis.vercel.app/)
+[Open Hexis](https://habittism.vercel.app/) (the existing Vercel project is named `habittism`; `hexis.vercel.app` is an unrelated third-party app)
 
-Long-term planning, decision history, and session logs live in [`plan/`](plan/README.md). Contribution and verification rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Third-party components are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). The guided seven-day pilot is planned in [`docs/pilot-7-day.md`](docs/pilot-7-day.md), and a repeatable five-minute walkthrough is in [`docs/walkthrough.md`](docs/walkthrough.md).
+Long-term planning, decision history, and session logs live in [`plan/`](plan/README.md). Contribution and verification rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Third-party components are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). The guided seven-day pilot is planned in [`docs/pilot-7-day.md`](docs/pilot-7-day.md), a repeatable five-minute walkthrough is in [`docs/walkthrough.md`](docs/walkthrough.md), and the supported recovery paths are in [`docs/recovery-guide.md`](docs/recovery-guide.md).
 
 ## Install and launch
 
-Open the live app and choose **Install app** on the guest banner or in **Settings → App**. The browser can add a desktop, Start menu, or home-screen icon. Where supported, the app icon’s shortcuts open [Today’s Focus](https://hexis.vercel.app/?view=today) or the [habit calendar](https://hexis.vercel.app/?view=calendar).
+Open the live app and choose **Install app** on the guest banner or in **Settings → App**. The browser can add a desktop, Start menu, or home-screen icon. Where supported, the app icon’s shortcuts open [Today’s Focus](https://habittism.vercel.app/?view=today) or the [habit calendar](https://habittism.vercel.app/?view=calendar).
 
 Guest journals can reopen offline after the first visit completes. The app caches the interface and its static assets. Your guest journal stays in browser storage, and account sync uses the network.
 
@@ -94,6 +94,7 @@ npm run lint -- --deny-warnings
 npm run build
 npm run test:logic
 npm run test:rls
+npm run test:integrity
 ```
 
 The browser tests start Vite on a local port and use isolated Supabase HTTP fixtures.
@@ -105,7 +106,7 @@ npm run test:pwa
 npm run verify:pages
 ```
 
-The install test uses the production build to verify the manifest, app icons, and guest launch offline. Run `npm run build` first. `npm run verify:pages` builds the `/Hexis/` subpath variant into `dist-pages/` and runs the same install checks against it, so both deployment targets are covered. `npm run test:logic` checks the outbox whitelist, guest-claim fallback, and streak/archive rules without a browser.
+The install test uses the production build to verify the manifest, app icons, and guest launch offline. Run `npm run build` first. `npm run verify:pages` builds the `/Hexis/` subpath variant into `dist-pages/` and runs the same install checks against it, so both deployment targets are covered. `npm run test:logic` checks the outbox whitelist, guest-claim fallback, and streak/archive rules without a browser. `npm run test:integrity` drives ten reproducible journal-integrity scenarios (guest persistence, migration, two-session sync, offline replay, failed writes, export/import, permission denial, expiry, recovery notice and midnight rollover) with synthetic data and isolated fixtures. Device-width checks are simulated in Chromium, not verified on physical hardware.
 
 To capture the deterministic demo frames used by the walkthrough, run `npm run demo` after `npm run build`; frames are written to the gitignored `shots/` directory. GitHub Pages deployment is gated on a green CI run; a manual workflow dispatch is the explicit bypass for hotfixes.
 

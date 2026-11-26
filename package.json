@@ -12,10 +12,12 @@
     "build": "tsc -b && vite build",
     "build:pages": "node scripts/pages.mjs build",
     "verify:pages": "node scripts/pages.mjs verify",
+    "check:live": "node scripts/check-live.mjs",
     "demo": "node scripts/demo.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test:e2e": "node e2e.mjs",
+    "test:integrity": "node test/integrity.mjs",
     "test:logic": "node test/logic.mjs",
     "test:pwa": "node test/pwa.mjs",
     "test:rls": "node test/rls.mjs"

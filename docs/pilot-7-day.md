@@ -11,9 +11,9 @@ Observe whether a small, fixed group can start a guest journal unaided, keep a h
 ## Cohort and consent
 
 - **Five participants**, chosen once before Day 1 and kept fixed for all seven days. No replacements mid-pilot unless someone withdraws.
-- Tell each participant, in writing: Hexis stores guest data in their browser; signing in syncs a copy to Supabase; they can export or delete their data; the pilot collects only four anonymous counters and never reads their habit names, notes, or affirmations.
+- Tell each participant, in writing: Hexis stores guest data in their browser; signing in syncs a copy to Supabase; they can export a JSON backup and delete individual habits; **there is no self-service account deletion yet** (tracked as `M3-2`); the pilot collects only four anonymous counters and never reads their habit names, notes, or affirmations.
 - Get explicit permission before observing a session or taking a screen recording.
-- Give participants this link: the deployed app plus `?pilot=events`, for example `https://hexis.vercel.app/?pilot=events`. That query parameter reveals **Settings → Pilot counters**, where they can turn local counters on or off and see the four counts.
+- Give participants this link: the deployed app plus `?pilot=events`, for example `https://habittism.vercel.app/?pilot=events`. The Vercel project is named `habittism`; `hexis.vercel.app` is an unrelated third-party app and must not be shared. That query parameter reveals **Settings → Pilot counters**, where they can turn local counters on or off and see the four counts.
 
 ## What is collected
 
@@ -40,7 +40,9 @@ npm run test:pwa
 npm run verify:pages
 ```
 
-All commands must pass. CI must be green before the pilot build is used. The Pages workflow is gated on a successful CI run.
+All commands must pass, plus `npm run test:integrity` for the data-integrity scenarios and `npm run check:live` against the deployed origin. CI must be green before the pilot build is used. The Pages workflow is gated on a successful CI run. Supported recovery paths are in [`recovery-guide.md`](recovery-guide.md).
+
+Device coverage in the automated suite is **simulated** at 375/320/303 px in Chromium. It is not a physical-phone, tablet or assistive-technology verification; that remains a human step.
 
 ## Seven-day schedule
 

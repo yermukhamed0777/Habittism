@@ -2,7 +2,25 @@
 
 All notable changes to Hexis are recorded here. Entries are derived from the actual commit history (`git log --pretty=format:'%ad|%h|%s' --date=short`) and from verification runs recorded in [`plan/progress.md`](plan/progress.md). No release tags exist in this repository; date headings are commit dates, not release dates.
 
-## [Unreleased] — 2026-11-26
+## [Unreleased] — 2026-11-26 (release candidate)
+
+### Added
+
+- `npm run test:integrity` — ten reproducible journal-integrity scenarios with synthetic data, wired into CI.
+- `npm run check:live` — read-only production and GitHub Pages verification.
+- `docs/recovery-guide.md` for export/import, failed writes, expiry and offline recovery.
+
+### Fixed
+
+- `P0-9` verified no silent loss, duplication or overwrite across guest persistence, migration, two-session sync, offline replay, failed writes and export/import.
+- `P0-10` corrected pilot consent wording: account deletion is not implemented (`M3-2`).
+- `P0-11` corrected the live URL: `hexis.vercel.app` serves an unrelated app; the real origin is `habittism.vercel.app`.
+
+### Verified
+
+- Full preflight, integrity suite, demo frames and 8 live checks; exact output in `plan/progress.md`.
+
+## 2026-11-26 — earlier release work
 
 ### Added
 

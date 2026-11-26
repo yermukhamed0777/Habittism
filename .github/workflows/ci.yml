@@ -30,6 +30,9 @@ jobs:
       - name: Type-check & build
         run: npm run build
 
+      - name: Verify pure logic rules
+        run: npm run test:logic
+
       - name: Verify PostgreSQL row ownership
         run: npm run test:rls
 
@@ -38,6 +41,9 @@ jobs:
 
       - name: Verify desktop and mobile journal flows
         run: npm run test:e2e
+
+      - name: Verify data-integrity and recovery scenarios
+        run: npm run test:integrity
 
       - name: Verify install assets and offline guest mode (base /)
         run: npm run test:pwa

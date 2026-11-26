@@ -28,6 +28,12 @@ Ordered, executable tasks. IDs are stable: never renumber an existing item. Ever
 
 - [x] **P0-8 — Make the touch command-menu entry point match the docs.** Refs: `src/index.css`, `README.md`, `src/App.tsx`. **Done when:** the icon is visible at 320 px and 303 px with no header overflow. Verified 2026-11-26 in `test:e2e`.
 
+- [x] **P0-9 — Prove journal integrity across ten reproducible scenarios.** Refs: new `test/integrity.mjs`, `package.json` (`test:integrity`), `.github/workflows/ci.yml`. **Scenarios:** guest creation/persistence/export/deletion; guest→account migration exactly once; two signed-in sessions converge; offline edits replay; failed write retries after reload; export/import idempotence; notification denial; expired-session pending replay; recovery notice; midnight/date-key consistency. **Done when:** all ten PASS lines with synthetic fixtures and no uncaught browser errors. Verified 2026-11-26.
+
+- [x] **P0-10 — Pilot consent wording claimed account deletion that does not exist.** Refs: `docs/pilot-7-day.md`. **Done when:** participants are told only about JSON export and habit deletion, with `M3-2` named as the open account-deletion item. Verified 2026-11-26 by file review.
+
+- [x] **P0-11 — The documented live URL served an unrelated third-party app.** Refs: `README.md`, `docs/pilot-7-day.md`, new `scripts/check-live.mjs`, `package.json`. **Evidence:** `https://hexis.vercel.app/` returned a different app titled `HEXIS!`; the existing Vercel project `habittism` serves the real app at `https://habittism.vercel.app/`. **Done when:** all documented links use the real origin and `npm run check:live` passes against Vercel and GitHub Pages. Verified 2026-11-26 with 8 live PASS lines; no account or journal data used.
+
 ## P1 — short term, larger
 
 - [x] **P1-1 — Gate Pages deployment on green CI.** Refs: `.github/workflows/deploy.yml`, `.github/workflows/ci.yml`. **Done when:** a failing CI run prevents the Pages deploy job. Implemented with a `workflow_run` completion trigger plus `if: conclusion == 'success'`; manual dispatch remains an explicit bypass. Verified by configuration review and the recorded CI/Pages runs; a deliberately red branch has not been exercised here.
@@ -52,7 +58,9 @@ Ordered, executable tasks. IDs are stable: never renumber an existing item. Ever
 
 - [x] **M2-1 — Build matrix for both deployment targets.** Refs: `.github/workflows/ci.yml`, `scripts/pages.mjs`, `test/pwa.mjs`. **Done when:** CI builds and tests both `/` and `/Hexis/` outputs and `test:pwa` runs against each. Verified 2026-11-26.
 
-- [ ] **M2-2 — Zero open P0 items with a recorded demo.** Refs: this file's P0 section, `CHANGELOG.md`, `scripts/demo.mjs`. **Done when:** all P0 boxes are ticked and a demo recording exists with its production command recorded. **Status:** all P0 boxes are ticked and `npm run demo` produces deterministic frames; the narrated video is a human step and has not been produced.
+- [ ] **M2-2 — Zero open P0 items with a recorded demo.** Refs: this file's P0 section, `CHANGELOG.md`, `scripts/demo.mjs`. **Done when:** all P0 boxes are ticked and a demo recording exists with its production command recorded. **Status:** all P0 boxes are ticked and `npm run demo` produced 5 deterministic frames on 2026-11-26; the narrated video is a human step and has not been produced.
+
+- [x] **M2-4 — Recovery guide and release-candidate evidence.** Refs: new `docs/recovery-guide.md`, `README.md`, `docs/pilot-7-day.md`, `plan/progress.md`. **Done when:** every supported recovery path is documented against code, unsupported account deletion is stated openly, device simulation is distinguished from physical verification, and the final demonstration command is recorded. Verified 2026-11-26.
 
 - [ ] **M2-3 — Assign operational ownership and one external conversation.** Refs: `README.md`, `plan/decisions.md`. **Done when:** names/accounts are recorded for Supabase, Vercel, DNS and SMTP, and one pricing or partner conversation is logged with its outcome. **Status:** human work only; not started.
 

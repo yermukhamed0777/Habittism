@@ -99,3 +99,26 @@ This entry is written before the commit by design. After the commit, `git push o
 - Pages run `45747520639` was triggered by `workflow_run` from that green CI run and completed **success** (Build 24s, Deploy 8s). This confirms `P1-1` in production: the deploy followed a green CI run rather than a raw push.
 - Both workflows emitted a non-blocking GitHub Actions notice that actions targeting Node.js 20 are being forced to Node.js 24 on the runner. All steps passed; this is not a Hexis failure.
 
+## 2026-11-26 — final data integrity and pilot preflight
+
+Reviewed `ab94729`, `c4f8c2f` and `docs/pilot-7-day.md` before editing. Baseline working tree was clean at `c4f8c2f`, in sync with `origin/main`. **No product code was changed**: every apparent failure during scenario development was traced to a fixture that omitted a Supabase column default, and the fixture was corrected. The one real defect found was a documentation claim (P0-10).
+
+| Command | Exact result |
+| --- | --- |
+| `npm.cmd ci` | `added 46 packages, and audited 47 packages in 9s`; `found 0 vulnerabilities`. |
+| `npm.cmd run lint -- --deny-warnings` | exit 0, no output. |
+| `npm.cmd run build` | exit 0; `2503 modules transformed`; JS `336.24 kB / 104.10 kB gzip`, CSS `26.71 kB / 6.73 kB gzip`; built in 457 ms. |
+| `npm.cmd run test:logic` | exit 0; 5 PASS lines (outbox whitelist, trimmed affirmation, read-only guest claim, legacy archive totals, weekly streak rule). |
+| `npm.cmd run test:rls` | exit 0; `PASS PostgreSQL owner isolation, reflections, atomic guest merge, conflict handling, and legacy import`. |
+| `npm.cmd run test:e2e` | exit 0; 16 PASS lines, including the pilot-event content-free assertion and 320/303 px header checks. |
+| `npm.cmd run test:integrity` | exit 0; 10 PASS lines: guest persistence/export/deletion; guest→account migration once; two-session convergence; offline replay; failed-write retry after reload; export/import idempotence; notification denial; expired-session pending replay; recovery notice; midnight consistency; plus no uncaught browser errors. |
+| `npm.cmd run test:pwa` | exit 0; `PASS install metadata, app icons, offline guest journal, and static-only caching under the Vercel CSP`. |
+| `npm.cmd run verify:pages` | exit 0; `/Hexis/` build (`index.html 1.43 kB`, JS `336.26 kB / 104.11 kB gzip`) and the same install PASS line. |
+| `npm.cmd run demo` | exit 0; all 16 e2e PASS lines repeated; 5 screenshots written to gitignored `shots/`. |
+
+**Coverage boundary:** the two-device scenario uses two Chromium contexts at 1440 px and 375 px with one mocked Supabase project. It is simulated device coverage, not a physical phone or desktop test. Screen-reader, zoom and real-network checks remain human-only.
+
+**Deployed verification:** `npm run check:live` (new read-only script) reported 8 PASS lines against `https://habittism.vercel.app/` and `https://yermukhamed0777.github.io/Hexis/`: homepage, CSP, manifest, worker, Today route, served JS bundle marker, served CSS hash, and the Pages subpath release. It also exposed P0-11: the previously documented `https://hexis.vercel.app/` serves an unrelated third-party app. All documented links were corrected to the existing `habittism` Vercel project.
+
+**Release gate:** public journal access is anonymous-first, private writes require a verified owner, RLS isolation is asserted by `test:rls`, and failed writes/notification paths degrade without journal loss. The seven-day pilot with five fixed participants is prepared in `docs/pilot-7-day.md` with a blank record sheet and `docs/recovery-guide.md`; recruitment, consent, feedback and real email delivery remain human-only. No usage, user or revenue result was measured.
+
