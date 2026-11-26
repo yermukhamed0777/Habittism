@@ -92,6 +92,9 @@ try {
   assert.equal((await db.query("update public.habits set archived=true, archive_periods='[]' where id=$1 returning id", [aliceHabit])).rows.length, 0)
   await assert.rejects(db.query('insert into public.habit_logs(habit_id, day, value) values ($1,$2,1)', [aliceHabit, day]), { code: '23503' })
   await assert.rejects(db.query('insert into public.habit_logs(user_id, habit_id, day, value) values ($1,$2,$3,1)', [alice, aliceHabit, day]), { code: '42501' })
+  // P1-3: import_modern_journal stores the backup ID in guest_id and lets
+  // Postgres generate the primary key, so a second account reusing an ID
+  // cannot collide with the first account's row. Its logs follow the new id.
   await importModern(original)
   await importModern(original)
   assert.equal(await count('habits'), 1)

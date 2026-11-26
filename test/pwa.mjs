@@ -5,7 +5,11 @@ import { preview } from 'vite'
 
 const config = JSON.parse(await readFile('vercel.json', 'utf8'))
 const headers = Object.fromEntries(config.headers[0].headers.map(({ key, value }) => [key, value]))
-const server = await preview({ logLevel: 'error', preview: { host: '127.0.0.1', port: 0, headers } })
+const dist = process.env.HEXIS_DIST ?? 'dist'
+const base = process.env.HEXIS_BASE_PATH ?? '/'
+const html = await readFile(`${dist}/index.html`, 'utf8')
+assert.ok(html.includes(`src="${base}assets/`), `${dist}/index.html does not use base ${base}`)
+const server = await preview({ logLevel: 'error', build: { outDir: dist }, preview: { host: '127.0.0.1', port: 0, headers } })
 let browser
 
 try {

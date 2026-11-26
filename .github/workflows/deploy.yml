@@ -1,7 +1,11 @@
 name: Deploy to GitHub Pages
 
+# Deployment follows a green CI run on main. Manual dispatch stays available
+# for explicit hotfixes, and is recorded as a deliberate bypass.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -17,6 +21,7 @@ concurrency:
 jobs:
   build:
     name: Build
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
       HEXIS_BASE_PATH: /Hexis/
@@ -24,9 +29,12 @@ jobs:
       VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Deploy exactly the commit that CI verified.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22.12'
           cache: npm
       - run: npm ci
       - run: npm run build

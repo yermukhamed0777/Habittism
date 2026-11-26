@@ -52,3 +52,43 @@ Source: `.workbuddy-ai/memory/2026-11-24.md:1-8`; commit `20af56d`. Recorded her
 ### Delivery note
 
 This entry is written before the commit by design. After the commit, `git push origin main`, local-vs-remote HEAD comparison, and `gh run list` confirm delivery; the resulting SHAs and CI status belong to the final report rather than a fabricated pre-commit claim.
+
+## 2026-11-26 — clear every P0/P1 defect and prepare the seven-day pilot (this session)
+
+### What changed
+
+- **`P0-2`** `src/hooks/useReminder.ts`: added an in-flight guard, moved the `last-sent` write and in-session flag after a successful `notify()`, cleared a stale error on success. `e2e.mjs` now forces both the worker and page notification paths to fail, asserts the dedupe key stays null, then releases the failure and asserts a same-day retry writes the key.
+- **`P0-3`** `src/store/useCloudJournal.ts`: exported `validAction` and `readPending`; outbox reads now validate action shape, discard bad JSON with a warning, and remove malformed keys. `test/logic.mjs` and `e2e.mjs` cover unknowns, bad fields and corrupt JSON.
+- **`P0-4`** affirmation bodies are trimmed at enqueue and `apply` deletes the day's key for an empty body. `e2e.mjs` asserts whitespace-only input creates no local row or remote row.
+- **`P0-5`** `src/lib/guestJournal.ts`: `setItem`/`getItem`/`removeItem` in `claimGuestJournal` are guarded, so account load proceeds under read-only storage. `test/logic.mjs` simulates the throw.
+- **`P0-6`** `src/lib/tracking.ts`: documented the weekly-freeze rule and made the missed branch unconditional for past weeks; `README.md:78` updated. `test/logic.mjs` checks `target=4/done=1/frozen=3` keeps the streak while `done=0` breaks it.
+- **`P0-7`** `src/lib/tracking.ts`: added `isActiveForHistory` and `isScheduledOn`; stats ignore an unknown archive start while `isActiveOn` keeps the habit out of Today. `README.md:82` updated and `test/logic.mjs` checks a 7-day archived habit keeps its opportunities and check-in.
+- **`P0-8`** removed the `max-width: 303px` rule hiding the command-menu icon. `e2e.mjs` checks visibility and header overflow at 320 px and 303 px.
+- **`P1-1`** `.github/workflows/deploy.yml`: replaced the `push` trigger with `workflow_run` on CI completion plus a `conclusion == 'success'` guard; checkout uses the verified `head_sha`. Manual dispatch is the explicit hotfix bypass.
+- **`P1-2` / `M2-1`** `test/pwa.mjs` accepts `HEXIS_DIST` and asserts the built base; `scripts/pages.mjs` builds and tests the `/Hexis/` variant; CI uploads `dist-vercel` and `dist-pages` and runs `verify:pages`.
+- **`P1-3`** verified no SQL change was needed: `import_modern_journal` maps supplied IDs to `guest_id` and Postgres generates the PK. Added a clarifying comment to `test/rls.mjs`.
+- **`P1-4`** `package.json` declares `engines: ^20.19.0 || >=22.12.0`; lockfile root synced; CI and deploy pinned to Node 22.12; README and CONTRIBUTING updated.
+- **`M1-2`** added `src/lib/pilotEvents.ts` with four allowlisted, content-free events and local counters. `AuthGate.tsx` records `sign_in`; `App.tsx` wraps the journal surface for `habit_created`/`checkin` and records `page_view`. A Settings panel behind `?pilot=events` exposes enable/disable and counts. `e2e.mjs` asserts every event has only `at`/`name` and contains no habit names, notes, affirmations or email.
+- **`M1-3`** added `docs/walkthrough.md`, `scripts/demo.mjs` and `npm run demo`; five deterministic frames are written to gitignored `shots/`.
+- **`M1-4`** added `docs/pilot-7-day.md` with cohort, consent wording, day-by-day schedule, counter instructions, failure format and decision gate. Recruiting and observing remain human.
+- Updated `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, and all six `plan/` files. `.gitignore` now ignores `dist-pages`.
+
+### Exact verification commands and results
+
+| Command | Result |
+| --- | --- |
+| `npm.cmd ci` | `added 46 packages, and audited 47 packages in 10s`; `found 0 vulnerabilities`. |
+| `npm.cmd run lint -- --deny-warnings` | Exit 0, no output. |
+| `npm.cmd run build` | Exit 0; `2503 modules transformed`; `dist/index.html 1.40 kB / 0.62 kB gzip`, `dist/app-worker.js 1.53 kB`, CSS `26.71 kB / 6.73 kB gzip`, JS `336.24 kB / 104.10 kB gzip`; built in 453 ms. |
+| `npm.cmd run test:logic` | Exit 0; three `discarded a malformed pending change` warnings from the intentional fixtures, then 5 PASS lines (outbox whitelist, trimmed affirmation validation, read-only guest claim, legacy archive totals, weekly streak rule). |
+| `npm.cmd run test:rls` | Exit 0; `PASS PostgreSQL owner isolation, reflections, atomic guest merge, conflict handling, and legacy import`. |
+| `npm.cmd run test:e2e` | Exit 0; 16 PASS lines including `whitespace-only affirmation creates no journal entry`, `failed notification is retried the same day and only then deduplicated`, `command menu is visible and the header fits at 320 px and 303 px`, and `pilot events are allowlisted and contain no journal content`. |
+| `npm.cmd run test:pwa` | Exit 0; `PASS install metadata, app icons, offline guest journal, and static-only caching under the Vercel CSP`. |
+| `npm.cmd run verify:pages` | Exit 0; `dist-pages` built with base `/Hexis/` (`index.html 1.43 kB`, JS `336.26 kB / 104.11 kB gzip`, 301 ms) and the same install PASS line. |
+| `npm.cmd run demo` | Exit 0; all 16 e2e PASS lines repeated; 5 screenshots created in gitignored `shots/`. |
+| `git status --short` | Only intended tracked edits plus new `docs/`, `scripts/`, `src/lib/pilotEvents.ts`, `test/logic.mjs`; `shots/`, `dist/` and `dist-pages/` are ignored. |
+
+### What remains open
+
+`M1-1`, `M1-4` (human cohort and seven sessions), `M2-2` (narrated video; frames and command exist), `M2-3`, and all `M3-*`/`M4-*` items. No P0 or P1 item is open. No product-usage metrics have been measured. No push or deployment was performed in this session; the CI/Pages gate is verified by workflow configuration and local commands, not by a deliberately red branch run.
+

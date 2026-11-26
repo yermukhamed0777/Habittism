@@ -90,9 +90,21 @@ export function changeArchive(habit: TrackedHabit, archived: boolean, day: strin
   return periods
 }
 
+function inArchive(habit: TrackedHabit, key: string, ignoreUnknownStart: boolean) {
+  return archiveHistory(habit).some(({ start, end }) =>
+    (!ignoreUnknownStart || start !== null) && (!start || key >= start) && (!end || key < end))
+}
+
+/** UI-facing activity: an archive period with an unknown start still excludes
+ * the habit from Today and the calendar while it is archived. */
 export function isActiveOn(habit: TrackedHabit, key: string) {
-  return key >= habit.createdOn && !archiveHistory(habit).some(({ start, end }) =>
-    (!start || key >= start) && (!end || key < end))
+  return key >= habit.createdOn && !inArchive(habit, key, false)
+}
+
+/** Historical activity: an unknown archive start cannot be attributed to a
+ * particular day, so known scheduled days keep contributing to stats. */
+export function isActiveForHistory(habit: TrackedHabit, key: string) {
+  return key >= habit.createdOn && !inArchive(habit, key, true)
 }
 
 export interface HabitLog {
@@ -154,6 +166,13 @@ export function isScheduled(habit: TrackedHabit, date: Date, key = toKey(date)) 
   return habit.schedule === 'daily' || habit.weekdays.includes(date.getDay())
 }
 
+/** Schedule check used by stats, where a legacy archive with no start date
+ * cannot be applied to a known day. */
+export function isScheduledOn(habit: TrackedHabit, date: Date, key = toKey(date)) {
+  if (habit.schedule === 'weekly' || !isActiveForHistory(habit, key)) return false
+  return habit.schedule === 'daily' || habit.weekdays.includes(date.getDay())
+}
+
 export function weekProgress(habit: TrackedHabit, logs: HabitLogs, week: Date, through: string) {
   const nextWeek = addWeeks(week, 1)
   const firstDay = habit.createdOn > toKey(week) ? fromKey(habit.createdOn) : week
@@ -163,7 +182,7 @@ export function weekProgress(habit: TrackedHabit, logs: HabitLogs, week: Date, t
 
   for (let date = firstDay; date < nextWeek; date = addDays(date, 1)) {
     const key = toKey(date)
-    if (!isActiveOn(habit, key)) continue
+    if (!isActiveForHistory(habit, key)) continue
     activeDays++
     if (key > through) continue
     const log = logs[key]
@@ -227,16 +246,19 @@ export function habitStats(habit: TrackedHabit, logs: HabitLogs, today: Date) {
       if (!target) continue
       opportunities += target
       completed += Math.min(target, done)
+      // Rule: one freeze excuses one missed weekly check-in, and a completed
+      // check-in is still required. A week with no completion breaks the streak
+      // even if every other slot was frozen.
       if (done >= target || (week < activeWeek && done > 0 && done + frozen >= target)) {
         record('complete')
-      } else if (week < activeWeek && frozen < target) {
+      } else if (week < activeWeek) {
         record('missed')
       }
     }
   } else {
     for (let date = start; date <= today; date = addDays(date, 1)) {
       const key = toKey(date)
-      if (!isScheduled(habit, date, key)) continue
+      if (!isScheduledOn(habit, date, key)) continue
       const log = logs[key]
       opportunities++
       if (isComplete(habit, log)) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { CalendarDays, ChartNoAxesColumnIncreasing, Download, House, ListChecks, Plus, Search, Settings, Sun, Target } from 'lucide-react'
 import { AuthShell } from './components/AuthGate'
@@ -24,6 +24,7 @@ import { downloadJournal } from './lib/journalExport'
 import { useInstallState } from './lib/installApp'
 import { browserBackupImported, markBrowserBackupImported, readBrowserBackup } from './lib/legacyJournal'
 import { dayEntries, isComplete, isOnToday, type Journal } from './lib/tracking'
+import { disablePilotEvents, enablePilotEvents, pilotEventsEnabled, readPilotCounters, track } from './lib/pilotEvents'
 import { useCloudJournal } from './store/useCloudJournal'
 
 const navigation = [
@@ -104,10 +105,29 @@ function Dashboard({ account, initial, openAccount, merged }: {
 }) {
   const { client, session, repository } = account ?? {}
   const userId = session?.user.id
-  const tracker = useCloudJournal(initial, repository, userId)
+  const journal = useCloudJournal(initial, repository, userId)
+  // Pilot counters wrap the journal surface; they never change its behaviour.
+  const tracker = useMemo(() => ({
+    ...journal,
+    createHabit: (habit: Parameters<typeof journal.createHabit>[0], day: string) => {
+      journal.createHabit(habit, day)
+      track('habit_created')
+    },
+    createHabits: (habits: Parameters<typeof journal.createHabits>[0], day: string) => {
+      journal.createHabits(habits, day)
+      if (habits.length) track('habit_created')
+    },
+    writeLog: (id: string, day: string, log: Parameters<typeof journal.writeLog>[2]) => {
+      journal.writeLog(id, day, log)
+      if (log && !log.frozen && log.value > 0) track('checkin')
+    },
+  }), [journal])
   const installState = useInstallState()
   const [view, setView] = useState(initialView)
+  const countedView = useRef(false)
   const [dialog, setDialog] = useState<Dialog | null>(null)
+  const pilotMode = new URLSearchParams(window.location.search).get('pilot') === 'events'
+  const [pilotOn, setPilotOn] = useState(pilotEventsEnabled)
   const [accountError, setAccountError] = useState('')
   const [signingOut, setSigningOut] = useState(false)
   const today = useToday()
@@ -131,9 +151,16 @@ function Dashboard({ account, initial, openAccount, merged }: {
   const habitView = { tracker, today, due, onAdd, onOpenHabit: openHabit, onTemplates: () => setDialog({ kind: 'templates' }) }
 
   function openView(next: View) {
+    if (next !== view) track('page_view')
     setView(next)
     window.scrollTo(0, 0)
   }
+
+  useEffect(() => {
+    if (countedView.current) return
+    countedView.current = true
+    track('page_view')
+  }, [])
 
   useEffect(() => {
     function openCommands(event: KeyboardEvent) {
@@ -273,6 +300,14 @@ function Dashboard({ account, initial, openAccount, merged }: {
             {account && <button type="button" className="secondary" disabled={!!tracker.sync.pending} onClick={() => setDialog({ kind: 'import' })}>Import JSON backup</button>}
           </div>
         </div>
+        {pilotMode && <div className="settings-section"><h3>Pilot counters</h3>
+          <p>Local counts only — page views, habits created, check-ins and sign-ins. No journal text is stored or sent.</p>
+          <div className="chips">
+            <button type="button" className="secondary" onClick={() => { enablePilotEvents(); setPilotOn(true) }}>Enable counters</button>
+            <button type="button" className="secondary" onClick={() => { disablePilotEvents(); setPilotOn(false) }}>Disable counters</button>
+          </div>
+          <small>{pilotOn ? JSON.stringify(readPilotCounters()) : 'Counters are off.'}</small>
+        </div>}
         {!!tracker.sync.pending && <p>Finish syncing changes before signing out.</p>}
         <div className="dialog-actions">{account
           ? <button type="button" className="secondary" disabled={!!tracker.sync.pending || signingOut} onClick={() => void signOut()}>Sign out</button>

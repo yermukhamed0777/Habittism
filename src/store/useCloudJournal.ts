@@ -11,8 +11,52 @@ type Action =
   | { type: 'log'; id: string; day: string; log: HabitLog | null }
   | { type: 'affirmation'; day: string; body: string }
 
-type Pending = { key: string; action: Action; readyAt: number; stored: boolean }
+export type Pending = { key: string; action: Action; readyAt: number; stored: boolean }
 type Sync = { pending: number; error: string; durable: boolean }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function validHabit(value: unknown): value is TrackedHabit {
+  if (!isRecord(value)) return false
+  return typeof value.id === 'string' && !!value.id
+    && typeof value.name === 'string' && !!value.name.trim()
+    && typeof value.createdOn === 'string'
+    && (value.schedule === 'daily' || value.schedule === 'weekdays' || value.schedule === 'weekly')
+    && (value.kind === 'binary' || value.kind === 'numeric')
+    && typeof value.goal === 'number' && Number.isFinite(value.goal)
+}
+
+function validPeriod(value: unknown): value is ArchivePeriod {
+  return isRecord(value)
+    && (value.start === null || typeof value.start === 'string')
+    && (value.end === null || typeof value.end === 'string')
+}
+
+/** Only the shapes written by this app may be replayed from the outbox. */
+export function validAction(value: unknown): value is Action {
+  if (!isRecord(value)) return false
+  switch (value.type) {
+    case 'create':
+      return Array.isArray(value.habits) && value.habits.every(validHabit)
+    case 'delete':
+      return typeof value.id === 'string' && !!value.id
+    case 'archive':
+      return typeof value.id === 'string' && !!value.id && typeof value.archived === 'boolean'
+        && Array.isArray(value.periods) && value.periods.every(validPeriod)
+    case 'details':
+      return typeof value.id === 'string' && !!value.id && isRecord(value.patch)
+        && typeof value.patch.name === 'string'
+    case 'log':
+      return typeof value.id === 'string' && typeof value.day === 'string'
+        && (value.log === null || isRecord(value.log))
+    case 'affirmation':
+      return typeof value.day === 'string' && typeof value.body === 'string'
+    default:
+      return false
+  }
+}
 
 function apply(journal: Journal, action: Action): Journal {
   switch (action.type) {
@@ -36,8 +80,13 @@ function apply(journal: Journal, action: Action): Journal {
       else delete byDay[action.day]
       return { ...journal, logs: { ...journal.logs, [action.id]: byDay } }
     }
-    case 'affirmation':
-      return { ...journal, affirmations: { ...journal.affirmations, [action.day]: action.body } }
+    case 'affirmation': {
+      const affirmations = { ...journal.affirmations }
+      const body = action.body.trim()
+      if (body) affirmations[action.day] = body
+      else delete affirmations[action.day]
+      return { ...journal, affirmations }
+    }
   }
 }
 
@@ -54,16 +103,26 @@ function send(repository: HabitRepository, action: Action) {
 
 const now = () => performance.timeOrigin + performance.now()
 
-function readPending(prefix: string): Pending[] {
+export function readPending(prefix: string): Pending[] {
   const writes: Pending[] = []
-  try {
-    for (const key of Object.keys(localStorage).filter((key) => key.startsWith(prefix)).sort()) {
+  let keys: string[]
+  try { keys = Object.keys(localStorage) } catch { return writes }
+  for (const key of keys.filter((item) => item.startsWith(prefix)).sort()) {
+    try {
       const raw = localStorage.getItem(key)
       if (!raw) continue
-      const { action, readyAt } = JSON.parse(raw) as Omit<Pending, 'key' | 'stored'>
-      if (action && Number.isFinite(readyAt)) writes.push({ key, action, readyAt, stored: true })
+      const parsed: unknown = JSON.parse(raw)
+      if (!isRecord(parsed)) throw new Error('Not an outbox entry')
+      const { action, readyAt } = parsed
+      if (!validAction(action) || typeof readyAt !== 'number' || !Number.isFinite(readyAt)) {
+        throw new Error('Unsupported outbox action')
+      }
+      writes.push({ key, action, readyAt, stored: true })
+    } catch {
+      console.warn('Hexis: discarded a malformed pending change.', key)
+      try { localStorage.removeItem(key) } catch { /* Storage may be read-only. */ }
     }
-  } catch { /* Pending writes can still use the in-memory queue. */ }
+  }
   return writes
 }
 
@@ -210,7 +269,7 @@ export function useCloudJournal(initial: Journal, repository?: HabitRepository, 
     updateArchive: (habit: TrackedHabit, archived: boolean, day: string) =>
       update({ type: 'archive', id: habit.id, archived, periods: changeArchive(habit, archived, day) }),
     writeLog: (id: string, day: string, log: HabitLog | null) => update({ type: 'log', id, day, log }),
-    writeAffirmation: (day: string, body: string) => update({ type: 'affirmation', day, body }),
+    writeAffirmation: (day: string, body: string) => update({ type: 'affirmation', day, body: body.trim() }),
   }
 }
 

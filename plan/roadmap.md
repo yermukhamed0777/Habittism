@@ -2,6 +2,8 @@
 
 The plan is split into exactly three horizons: **Short term**, **Midterm**, **Long term**. An expansion section follows for host/database alternatives. Each milestone is split into **Intelligence** (what the assistant can do) and **Human** (what only the user can do). Targets are proposals, not measured results.
 
+**Status (2026-11-26):** every Short term item is complete. `M1-2`, `M1-3` and `M2-1` are complete. The remaining work is human: `M1-1`, the seven-day pilot below, the narrated demo video in `M2-2`, and `M2-3`. No product-usage metrics have been measured.
+
 ## Short term
 
 Really easy, concrete next steps. I take the Intelligence items; the user is needed only where marked.
@@ -68,6 +70,11 @@ Bigger milestones with real-world validation and GTM proof.
 **M1 — First external validation.** Exit criteria: at least two people outside the project have used the guest flow unaided, their observed failures are recorded as backlog IDs with fixes verified, and a privacy-safe event set exists (no habit names, notes, or check-in content in analytics).
 - **Intelligence:** Build a guest-only demo build, add consent-free counters (page view, habit created, check-in, sign-in) behind a local flag, write a test that asserts no journal content is present in emitted events, prepare a scripted 5-minute walkthrough.
 - **Human:** Recruit the two testers, obtain permission to observe and record, run the sessions, decide what feedback changes the product, and record the decision in `plan/decisions.md`.
+
+**M1b — Guided seven-day pilot with five fixed users.** Exit criteria: five participants use the app for seven consecutive days, their failures are filed as backlog IDs with fixes verified, and the four content-free counters are collected with consent. This is the point where assistant work stops and human work begins.
+- **Intelligence:** Complete. `docs/pilot-7-day.md` has the cohort, consent wording, schedule, counter instructions, failure format and decision gate. `?pilot=events` reveals a Settings panel for the local counters. `npm run test:e2e` asserts no journal content is emitted; `npm run demo` captures the walkthrough frames.
+- **Human:** Recruit the fixed cohort, obtain written permission, run Days 0–7, collect counters, file failures, and record go/no-go in `plan/decisions.md`.
+- **Done when:** `plan/progress.md` records all seven sessions and the decision.
 
 **M2 — Repeatable product and GTM proof.** Exit criteria: the same onboarding flow passes on Vercel and Pages builds, a recorded demo exists, one documented paid or partnership conversation has occurred, and the team/personal handoff responsibilities (Supabase, Vercel, DNS, SMTP) are assigned.
 - **Intelligence:** Add a build-matrix check for both base paths, produce a deterministic demo fixture and recording script, document account ownership and backup/restore operations, reduce the known defect list to zero P0 items.

@@ -2,7 +2,35 @@
 
 All notable changes to Hexis are recorded here. Entries are derived from the actual commit history (`git log --pretty=format:'%ad|%h|%s' --date=short`) and from verification runs recorded in [`plan/progress.md`](plan/progress.md). No release tags exist in this repository; date headings are commit dates, not release dates.
 
-## [Unreleased] — 2026-11-25
+## [Unreleased] — 2026-11-26
+
+### Added
+
+- `test/logic.mjs` (`npm run test:logic`) for outbox validation, read-only guest claims, weekly-freeze semantics, and legacy archive totals.
+- `scripts/pages.mjs` and `npm run verify:pages`: builds and tests the `/Hexis/` Pages variant alongside the Vercel-shaped build.
+- Content-free local pilot counters (`src/lib/pilotEvents.ts`), a Settings panel behind `?pilot=events`, and an e2e assertion that emitted events contain no journal content.
+- `docs/pilot-7-day.md` and `docs/walkthrough.md` for the guided cohort and the five-minute demo.
+- `scripts/demo.mjs` (`npm run demo`) to capture deterministic demo frames into gitignored `shots/`.
+- `engines` in `package.json` and CI/deploy pinned to Node 22.12.
+
+### Fixed
+
+- `P0-2` a failed daily notification no longer burns the dedupe key; the same-day retry is verified in `test:e2e`.
+- `P0-3` malformed outbox entries are validated, discarded and removed before replay.
+- `P0-4` affirmation bodies are trimmed before optimistic apply, so whitespace-only input creates no entry.
+- `P0-5` guest claim survives read-only `localStorage` and no longer blocks account load.
+- `P0-6` weekly streak rule made explicit and consistent: one freeze per missed check-in plus at least one real completion.
+- `P0-7` legacy archives with unknown start keep historical scheduled totals in Insights while staying out of Today.
+- `P0-8` the command-menu button is visible down to 303 px, with header overflow checks at 320 px and 303 px.
+- `P1-1` Pages deployment now requires a green CI run; manual dispatch is the documented bypass.
+- `P1-2` CI uploads both Vercel- and Pages-shaped artifacts and tests both base paths.
+- `P1-4` supported Node versions are declared and pinned; `P1-3` was verified already correct (import IDs are mapped to `guest_id` with a fresh primary key).
+
+### Verified
+
+- `npm ci`, lint, build, `test:logic`, `test:rls`, `test:e2e`, `test:pwa`, `verify:pages` — exact output recorded in `plan/progress.md`.
+
+## 2026-11-25
 
 ### Added
 

@@ -6,7 +6,7 @@ Hexis is a private habit tracker and affirmation journal. Start immediately as a
 
 [Open Hexis](https://hexis.vercel.app/)
 
-Long-term planning, decision history, and session logs live in [`plan/`](plan/README.md). Contribution and verification rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Third-party components are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+Long-term planning, decision history, and session logs live in [`plan/`](plan/README.md). Contribution and verification rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Third-party components are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). The guided seven-day pilot is planned in [`docs/pilot-7-day.md`](docs/pilot-7-day.md), and a repeatable five-minute walkthrough is in [`docs/walkthrough.md`](docs/walkthrough.md).
 
 ## Install and launch
 
@@ -14,11 +14,11 @@ Open the live app and choose **Install app** on the guest banner or in **Setting
 
 Guest journals can reopen offline after the first visit completes. The app caches the interface and its static assets. Your guest journal stays in browser storage, and account sync uses the network.
 
-Use **Ctrl+K** or **⌘K** to jump to a page, find a habit, or start an action. The search icon opens the same menu on touch devices where the header has room; that icon is hidden below 303 px.
+Use **Ctrl+K** or **⌘K** to jump to a page, find a habit, or start an action. The search icon opens the same menu on touch devices, including narrow screens down to 303 px.
 
 ## Run locally
 
-1. Use Node.js 22.12 or newer and run `npm ci`.
+1. Use Node.js 20.19+ or 22.12+ (the version declared in `package.json` `engines`; 22.12 is the version used in CI) and run `npm ci`.
 2. Create a Supabase project. In its **SQL Editor**, run [supabase/schema.sql](supabase/schema.sql) once, then apply each SQL file in [supabase/migrations](supabase/migrations) in filename order. Projects that already have the base schema need only the unapplied migrations.
 3. Copy [`.env.example`](.env.example) to `.env.local`. Set `VITE_SUPABASE_URL` to the Project URL and `VITE_SUPABASE_ANON_KEY` to its publishable or legacy anon key. Vite exposes these two values in the browser bundle. Keep Supabase service-role and secret keys in server environments.
 4. In Supabase **Authentication → URL Configuration**, add `http://localhost:5173/` to **Redirect URLs**. Set the **Site URL** to that address while developing a local-only project. [Supabase redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls)
@@ -75,14 +75,16 @@ If an account write fails, the app keeps the pending change in the current brows
 
 - Dates follow the browser’s local time. A habit starts contributing to scheduled totals on its creation date. Earlier completions you add from habit history appear as optional check-ins.
 - Daily and weekday habits count streaks in consecutive scheduled check-ins. Flexible goals count distinct completed days towards a Monday–Sunday target and measure streaks in weeks. The first week’s target is capped at the number of days left. Flexible goals appear in Today while the target is open, and the calendar counts their check-ins on the dates you logged them.
-- Freeze an unfinished scheduled day from habit history to protect the streak. Frozen days stay outside completed totals. For weekly habits, frozen days also count toward the weekly total when the streak is calculated after the week ends; multiple freezes can therefore excuse multiple missed days (tracked as `P0-6` in [`plan/backlog.md`](plan/backlog.md)).
+- Freeze an unfinished scheduled day from habit history to protect the streak. Frozen days stay outside completed totals. For weekly habits, one freeze excuses one missed weekly check-in and at least one real completion is still required: a past week with `4` targets, `1` completion and `3` freezes keeps the streak, while a week with no completion breaks it.
 - Numeric goals are complete once the logged amount meets the target. Reminders run in the browser and can notify you once a day while the app is open.
 - Today’s Focus moves partial goals and time-sensitive weekly targets up the queue. Complete a check-in and tap an energy tag or add a short reflection.
 - **This week** shows scheduled check-ins and flexible weekly targets together. Open a past or current day to view its check-ins.
-- Archive from **Habits → Active** and restore from **Habits → Archived**. Archive periods start on the current local date and end on the restore date. Paused dates create no missed goals. Earlier counts and streaks are preserved, and weekly quotas are capped at the active days in that week. Older archived habits with no recorded start date retain their check-ins but contribute no scheduled totals (`P0-7` in [`plan/backlog.md`](plan/backlog.md)).
+- Archive from **Habits → Active** and restore from **Habits → Archived**. Archive periods start on the current local date and end on the restore date. Paused dates create no missed goals. Earlier counts and streaks are preserved, and weekly quotas are capped at the active days in that week. Older archived habits whose archive start date is unknown keep their check-ins and their known scheduled totals in Insights, while staying out of Today while archived.
 - Open a habit’s history and choose **Edit details** to change its name, icon, color, or category. These edits preserve the schedule, goal, and history.
 - **Weekly Coach** in Insights summarizes the current week and opens the next due habit for a check-in. It uses the journal currently loaded in the app: the guest journal on this device, or your synced account journal.
 - Insights includes rolling 90-day and 365-day heatmaps and shows 7-, 30-, and 100-day streak milestones for daily and weekday habits. Export your habits, check-ins, reflections, and affirmations as JSON or CSV from **Settings → Data**.
+
+For the guided pilot, append `?pilot=events` to the app URL to reveal **Settings → Pilot counters**. They count page views, habits created, check-ins, and sign-ins locally; no journal text is stored or transmitted. The cohort plan and consent wording are in [`docs/pilot-7-day.md`](docs/pilot-7-day.md).
 
 ## Verify changes
 
@@ -90,17 +92,21 @@ If an account write fails, the app keeps the pending change in the current brows
 npm ci
 npm run lint -- --deny-warnings
 npm run build
+npm run test:logic
 npm run test:rls
 ```
 
-The browser test starts Vite on a local port and uses isolated Supabase HTTP fixtures.
+The browser tests start Vite on a local port and use isolated Supabase HTTP fixtures.
 
 ```sh
 npx playwright install chromium
 npm run test:e2e
 npm run test:pwa
+npm run verify:pages
 ```
 
-The install test uses the production build to verify the manifest, app icons, and guest launch offline. Run `npm run build` first.
+The install test uses the production build to verify the manifest, app icons, and guest launch offline. Run `npm run build` first. `npm run verify:pages` builds the `/Hexis/` subpath variant into `dist-pages/` and runs the same install checks against it, so both deployment targets are covered. `npm run test:logic` checks the outbox whitelist, guest-claim fallback, and streak/archive rules without a browser.
+
+To capture the deterministic demo frames used by the walkthrough, run `npm run demo` after `npm run build`; frames are written to the gitignored `shots/` directory. GitHub Pages deployment is gated on a green CI run; a manual workflow dispatch is the explicit bypass for hotfixes.
 
 [MIT License](LICENSE)

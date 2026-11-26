@@ -47,9 +47,10 @@ export function useReminder(userId: string, outstanding: number) {
     if (!supported || !preference.enabled || !outstanding) return
     const sentKey = `${key}:last-sent`
     let sentInSession = ''
+    let sending = false
 
     async function check() {
-      if (Notification.permission !== 'granted') return
+      if (Notification.permission !== 'granted' || sending) return
       const now = new Date()
       const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       if (clock < preference.time) return
@@ -57,14 +58,20 @@ export function useReminder(userId: string, outstanding: number) {
       if (sentInSession === day) return
       try {
         if (localStorage.getItem(sentKey) === day) return
-        localStorage.setItem(sentKey, day)
-      } catch { /* The current tab still deduplicates notifications. */ }
-      sentInSession = day
+      } catch { /* Storage may be read-only; this tab still deduplicates. */ }
+
+      sending = true
       try {
         await notify(outstanding)
       } catch {
         setError('This browser could not show a notification. Check its notification settings.')
+        return
+      } finally {
+        sending = false
       }
+      setError('')
+      sentInSession = day
+      try { localStorage.setItem(sentKey, day) } catch { /* In-session dedupe still applies. */ }
     }
 
     const checkNow = () => void check()

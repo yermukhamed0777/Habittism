@@ -13,9 +13,9 @@ This folder is the single source of truth for long-term execution. It was create
 
 ## Status snapshot
 
-- **Stage:** Public GitHub repository (`yermukhamed0777/Hexis`, PUBLIC, MIT), PWA deployed to Vercel and GitHub Pages. Phase 1 audit and Phase 2 scaffolding complete; plan layer established. Known P0 defects remain open.
-- **Latest measured numbers (2026-11-25):** Node `v24.18.1`, npm `11.16.0`; `npm ci` 0 vulnerabilities, 46 packages; lint exit 0 after ignore fix; build 2502 modules, JS 332.67 kB / 103.13 kB gzip, CSS 26.79 kB / 6.76 kB gzip, 499 ms baseline and 586 ms final re-run; `test:rls` 1 PASS; `test:e2e` 12 PASS; `test:pwa` 1 PASS. Pre-existing CI `45356682855` and Pages `45356682909` succeeded on `20af56d`. No product-usage metrics exist.
-- **Next action:** `P0-2` — retry a failed daily notification instead of suppressing it (`src/hooks/useReminder.ts:59-67`), after this commit is pushed and CI is confirmed.
+- **Stage:** Public GitHub repository (`yermukhamed0777/Hexis`, PUBLIC, MIT), PWA deployed to Vercel and GitHub Pages. Phase 1 audit and Phase 2 scaffolding complete; all `P0-*` and `P1-*` items are closed. The seven-day pilot is prepared in `docs/pilot-7-day.md`; its five participants and seven sessions are human work and have not been started. No product-usage metrics exist.
+- **Latest measured numbers (2026-11-26):** Node `v24.18.1`, npm `11.16.0`; `npm ci` 0 vulnerabilities, 46 packages; lint exit 0; build 2503 modules, JS 336.24 kB / 104.10 kB gzip, CSS 26.71 kB / 6.73 kB gzip, 453 ms; `test:logic` 5 PASS; `test:rls` 1 PASS; `test:e2e` 16 PASS; `test:pwa` 1 PASS; `verify:pages` 1 PASS; `npm run demo` produced 5 frames. Earlier CI `45356682855` and Pages `45356682909` succeeded on `20af56d`. No push or deploy was performed in this session.
+- **Next action:** `M1-4` — the human seven-day pilot with five fixed users. Assistant-side preparation is complete; the remaining work is recruitment, consent, seven observed sessions, failure filing, and the go/no-go decision.
 
 ## Binding update convention
 

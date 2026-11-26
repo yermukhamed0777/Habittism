@@ -4,12 +4,19 @@
   "version": "0.1.0",
   "description": "A private habit tracker and affirmation journal.",
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:pages": "node scripts/pages.mjs build",
+    "verify:pages": "node scripts/pages.mjs verify",
+    "demo": "node scripts/demo.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test:e2e": "node e2e.mjs",
+    "test:logic": "node test/logic.mjs",
     "test:pwa": "node test/pwa.mjs",
     "test:rls": "node test/rls.mjs"
   },

@@ -437,9 +437,6 @@ progress::-moz-progress-bar { background: var(--action); }
   .habit-row .numeric-control { flex-basis: 100%; max-width: none; }
   .form-columns { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 303px) {
-  .header-actions [aria-label='Command menu'] { display: none; }
-}
 @media (prefers-reduced-transparency: reduce) {
   :root { --glass: #f4f6ff; --surface: #f8faff; --field: #edf0fb; }
   :root[data-theme='dark'] { --glass: #1c2643; --surface: #1a2444; --field: #0c142e; }

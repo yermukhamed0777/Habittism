@@ -140,6 +140,15 @@ try {
   await context.route(`${origin}/**`, mockSupabase)
   const page = await context.newPage()
   await page.clock.setFixedTime(new Date('2026-11-20T09:30:00+08:00'))
+  // M1-2: enable the local, content-free pilot counters and record what is emitted.
+  await page.addInitScript(() => {
+    localStorage.setItem('hexis-pilot-events', 'on')
+    window.addEventListener('hexis:pilot-event', (event) => {
+      const events = JSON.parse(sessionStorage.getItem('hexis-test-events') ?? '[]')
+      events.push(event.detail)
+      sessionStorage.setItem('hexis-test-events', JSON.stringify(events))
+    })
+  })
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   const shots = process.env.HEXIS_TEST_SCREENSHOTS
@@ -255,6 +264,14 @@ try {
   console.log('PASS weekly frequency, numeric progress, category filters, search, and monthly insights')
 
   await navigate('Today')
+  // P0-4: whitespace-only input must not create a local or remote entry.
+  await page.getByRole('textbox', { name: 'Daily affirmation' }).fill('   ')
+  assert.equal(await page.getByRole('textbox', { name: 'Daily affirmation' }).inputValue(), '')
+  assert.equal(await page.evaluate((id) => Object.keys(localStorage).some((key) =>
+    key.startsWith(`hexis-outbox-v1:${id}:`) && JSON.parse(localStorage.getItem(key)).action?.body === '   '), user.id), false)
+  assert.equal(tables.daily_affirmations.has('2026-11-20'), false)
+  console.log('PASS whitespace-only affirmation creates no journal entry')
+
   failNextNote = true
   await page.getByRole('textbox', { name: 'Daily affirmation' }).fill('I keep showing up.')
   await page.getByRole('button', { name: 'Retry sync' }).waitFor()
@@ -269,11 +286,14 @@ try {
   failNextNote = true
   await page.getByRole('textbox', { name: 'Daily affirmation' }).fill('The journal survives a reload.')
   await page.getByRole('button', { name: 'Retry sync' }).waitFor()
-  await page.evaluate(() => {
+  await page.evaluate((id) => {
     localStorage.setItem('hexis-outbox-v1:a-different-account:0001', JSON.stringify({
       action: { type: 'affirmation', day: '2026-11-20', body: 'Another account’s draft' }, readyAt: 0,
     }))
-  })
+    localStorage.setItem(`hexis-outbox-v1:${id}:0000-malformed`, JSON.stringify({
+      action: { type: 'drop-everything' }, readyAt: 0,
+    }))
+  }, user.id)
   await page.reload()
   await synced()
   assert.equal(await page.getByRole('textbox', { name: 'Daily affirmation' }).inputValue(), 'The journal survives a reload.')
@@ -313,13 +333,41 @@ try {
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('heading', { name: 'Habit reminders' }).waitFor()
   await context.grantPermissions(['notifications'])
+  // P0-2: the first notification attempt fails twice (worker + page fallback).
+  // The dedupe key must not be written, and a later attempt the same day must succeed.
+  await page.evaluate(() => {
+    const originalShow = ServiceWorkerRegistration.prototype.showNotification
+    window.__hexisFailNotifications = true
+    const fail = () => {
+      if (window.__hexisFailNotifications) throw new Error('Forced notification failure')
+    }
+    ServiceWorkerRegistration.prototype.showNotification = function (...args) {
+      fail()
+      return originalShow.apply(this, args)
+    }
+    // A deterministic stand-in: permission is granted, but every construction
+    // attempt throws until the test releases the failure flag.
+    window.Notification = class {
+      constructor() { fail() }
+      static get permission() { return 'granted' }
+      static requestPermission() { return Promise.resolve('granted') }
+    }
+  })
   await page.getByLabel('Reminder time').fill('00:00')
   await page.getByRole('button', { name: 'Enable reminders' }).click()
   await page.getByText('Reminder saved.').waitFor()
+  await page.getByText('This browser could not show a notification. Check its notification settings.').waitFor()
+  assert.equal(await page.evaluate((id) => localStorage.getItem(`hexis-reminder-v1:${id}:last-sent`), user.id), null)
+  await page.evaluate(() => {
+    window.__hexisFailNotifications = false
+    window.dispatchEvent(new Event('focus'))
+  })
   await page.waitForFunction(async () => {
     const registration = await navigator.serviceWorker.getRegistration()
     return registration && (await registration.getNotifications()).some((notice) => notice.tag === 'hexis-daily-reminder')
   })
+  assert.equal(await page.evaluate((id) => localStorage.getItem(`hexis-reminder-v1:${id}:last-sent`), user.id), '2026-11-20')
+  console.log('PASS failed notification is retried the same day and only then deduplicated')
   await page.getByRole('button', { name: 'Turn off' }).click()
   await page.getByRole('button', { name: 'Import JSON backup' }).click()
   await page.getByLabel('Hexis backup file').setInputFiles({
@@ -466,6 +514,28 @@ try {
   assert.equal(tables.habit_logs.get(saved.id + ':2026-11-20').note, '=Better, "one sip at a time"')
   assert.equal(tables.habit_logs.get(saved.id + ':2026-11-21').frozen, true)
   console.log('PASS modern JSON restore preserves numeric goals, archive history, and reflections')
+
+  // P0-8: the command menu stays reachable on very narrow touch screens.
+  for (const width of [320, 303]) {
+    await page.setViewportSize({ width, height: 812 })
+    assert.equal(await page.getByRole('button', { name: 'Command menu' }).isVisible(), true)
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+    assert.equal(await page.locator('.header-inner').evaluate((header) => header.scrollWidth <= header.clientWidth), true)
+  }
+  console.log('PASS command menu is visible and the header fits at 320 px and 303 px')
+
+  // M1-2: emitted events carry only an allowlisted name and a timestamp.
+  const pilotEvents = JSON.parse(await page.evaluate(() => sessionStorage.getItem('hexis-test-events') ?? '[]'))
+  assert.ok(pilotEvents.length > 0)
+  for (const event of pilotEvents) {
+    assert.ok(['page_view', 'habit_created', 'checkin', 'sign_in'].includes(event.name))
+    assert.deepEqual(Object.keys(event).sort(), ['at', 'name'])
+  }
+  const emitted = JSON.stringify(pilotEvents)
+  for (const privateText of ['Morning walk', 'Read pages', 'Evening reflection', 'I keep showing up.', '=Better, "one sip at a time"', 'avery@example.test']) {
+    assert.equal(emitted.includes(privateText), false, `pilot events leaked ${privateText}`)
+  }
+  console.log('PASS pilot events are allowlisted and contain no journal content')
 
   assert.deepEqual(errors, [])
   console.log('PASS mobile layout, reminders, file import, guest templates, keyboard check-ins, reflections, exports, and OAuth guest merge')

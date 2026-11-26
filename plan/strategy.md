@@ -20,7 +20,7 @@ A habit tracker that does not put a signup wall in front of the user. Hexis open
 
 ## Metrics
 
-**Measured (engineering only, 2026-11-25):** `npm ci` 0 vulnerabilities; lint 0 warnings after ignore fix; build succeeds (2502 modules, JS 332.67 kB / 103.13 kB gzip); `test:rls` 1 PASS line; `test:e2e` 12 PASS lines; `test:pwa` 1 PASS line. CI run `45356682855` and Pages deploy `45356682909` succeeded on `20af56d` before this planning commit. These are verification results, not product usage.
+**Measured (engineering only, 2026-11-26):** `npm ci` 0 vulnerabilities; lint 0 warnings; build succeeds (2503 modules, JS 336.24 kB / 104.10 kB gzip, CSS 26.71 kB / 6.73 kB gzip); `test:logic` 5 PASS lines; `test:rls` 1 PASS line; `test:e2e` 16 PASS lines; `test:pwa` 1 PASS line; `verify:pages` 1 PASS line on the `/Hexis/` build; `npm run demo` produced 5 screenshots. Earlier CI run `45356682855` and Pages deploy `45356682909` succeeded on `20af56d`. These are verification results, not product usage. No push or deploy was performed in the 2026-11-26 session.
 
 **Not measured:** active users, guest→account conversion, D7 retention, check-in frequency, revenue, error rates. No analytics SDK or server-side event table exists. Any such number in future docs must be shown with the command that produced it.
 
@@ -31,11 +31,11 @@ A habit tracker that does not put a signup wall in front of the user. Hexis open
 | Risk | Evidence | Impact |
 | --- | --- | --- |
 | RLS is the only privacy boundary; key validation is cosmetic | `src/lib/supabase.ts:3-11`, `supabase/schema.sql:58-76` | Misconfigured key/origin can misdirect auth; no E2E encryption |
-| Deploy not gated on CI | `.github/workflows/deploy.yml:3-6,38-47` | A red test run can still ship to Pages |
-| CI artifact uses base `/`, Pages build uses `/Hexis/` | `.github/workflows/ci.yml:45-49`, `.github/workflows/deploy.yml:22` | Artifact cannot be reused for the deployed subpath |
+| Deploy not gated on CI — **resolved 2026-11-26** | `.github/workflows/deploy.yml` now uses `workflow_run` + success guard | A red test run can still ship to Pages via manual dispatch only, which is an explicit bypass |
+| CI artifact uses base `/`, Pages build uses `/Hexis/` — **resolved 2026-11-26** | `scripts/pages.mjs`, `test/pwa.mjs`, CI uploads both artifacts | Both targets are built and tested; no known mismatch |
 | PWA shell can stay stale after deploy | `pwa/app-worker.js:8-19` (no `skipWaiting`) | Users see an old build until all tabs close |
 | English-only UI with mixed locale formatting | `index.html:2`, `src/components/TrackerViews.tsx:10`, `src/lib/dates.ts:38` | Localisation requires touching all component copy |
-| Known logic defects in streak/archive/outbox paths | `src/lib/tracking.ts:72-75,171,230`, `src/store/useCloudJournal.ts:39-40,57-68` | Incorrect totals or stale drafts; see `P0-2`…`P0-7` |
+| Known logic defects in streak/archive/outbox paths — **resolved 2026-11-26** | `src/lib/tracking.ts`, `src/store/useCloudJournal.ts`, `src/hooks/useReminder.ts` | All `P0-2`…`P0-8` items are ticked with recorded verification; no open known logic defect |
 | Vendor lock-in to one Supabase origin in CSP | `vercel.json:13`, `README.md:33` | Changing backend requires manual header edit or requests are silently blocked |
 
 ## Open questions (human decisions required)
@@ -59,3 +59,4 @@ Sessions are grouped by commit date; descriptions use the actual commit subjects
 | 2026-11-22 | 6 commits, `b460b53`…`4a2f25e` | Restore full JSON backups without overwriting data, recover unsynced account edits after reload, 16 accessible accent colors, private Weekly Coach, production browser policies, journal recovery/release settings docs. |
 | 2026-11-24 | `20af56d` | Rebranded Habittism to Hexis and restored Pages deployment. Root cause recorded in `.workbuddy-ai/memory/2026-11-24.md:4`: `a4d963b` had changed `deploy.yml` to `workflow_dispatch` only; push trigger restored, `HEXIS_BASE_PATH=/Hexis/` set, old `vite.config.ts` fallback removed. CI `45356682855` and Pages `45356682909` succeeded. |
 | 2026-11-25 | uncommitted at time of writing | Read-only three-track audit (core/data, UI/docs, tests/CI); baseline verification `npm ci`, lint, build, `test:rls`, `test:e2e`, `test:pwa`; fixed local lint by ignoring untracked research trees; added public-repo scaffolding and this `plan/` folder; reconciled contradictory README claims. |
+| 2026-11-26 | uncommitted at time of writing | Cleared every P0 and P1 item: notification retry, outbox validation, affirmation trim, read-only guest claim, weekly-freeze rule, legacy archive totals, narrow-screen command menu, CI-gated Pages deploy, dual build matrix, Node pin. Added content-free pilot counters, walkthrough and demo scripts, and the seven-day pilot plan. Full verification suite green; no push or deploy performed. |

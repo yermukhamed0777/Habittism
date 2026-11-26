@@ -28,11 +28,13 @@ export function claimGuestJournal(userId: string) {
   if (guest.mergeUserId && guest.mergeUserId !== userId) return null
   if (!guest.journal.habits.length && !Object.values(guest.journal.affirmations).some((note) => note.trim())) return null
   const claimed = JSON.stringify({ journal: guest.journal, mergeUserId: userId })
-  localStorage.setItem(key, claimed)
+  try { localStorage.setItem(key, claimed) } catch { /* The claim still lives for this session. */ }
   return {
     journal: guest.journal,
     finish() {
-      if (localStorage.getItem(key) === claimed) localStorage.removeItem(key)
+      try {
+        if (localStorage.getItem(key) === claimed) localStorage.removeItem(key)
+      } catch { /* Storage is unavailable; there is nothing to release. */ }
     },
   }
 }

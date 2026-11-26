@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { ArrowRight, GitFork } from 'lucide-react'
 import { authRedirect, callbackError, supabase } from '../lib/supabase'
+import { track } from '../lib/pilotEvents'
 import { ThemeToggle } from './ThemeToggle'
 import './auth.css'
 
@@ -50,6 +51,7 @@ export function AuthGate({ children, guest }: {
         setMode('recovery')
         setPassword('')
       }
+      if (event === 'SIGNED_IN') track('sign_in')
       setSession(next)
       if (event === 'SIGNED_OUT') {
         setMode('signin')
