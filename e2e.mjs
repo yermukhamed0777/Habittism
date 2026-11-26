@@ -325,13 +325,19 @@ try {
       ServiceWorkerRegistration.prototype.showNotification = original
       throw new Error('Temporary delivery failure')
     }
-    window.Notification = new Proxy(NativeNotification, {
-      construct() { window.Notification = NativeNotification; throw new Error('Fallback unavailable') },
-    })
+    window.Notification = class {
+      static permission = 'granted'
+      constructor() {
+        window.Notification = NativeNotification
+        window.reminderFailureObserved = true
+        throw new Error('Fallback unavailable')
+      }
+    }
   })
   await page.getByLabel('Reminder time').fill('00:00')
   await page.getByRole('button', { name: 'Enable reminders' }).click()
-  await page.getByText(/This browser could not show a notification/).waitFor()
+  await page.waitForFunction(() => window.reminderFailureObserved)
+  assert.equal(await page.evaluate(() => Object.keys(localStorage).some((key) => key.endsWith(':last-sent'))), false)
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await page.waitForFunction(async () => {
     const registration = await navigator.serviceWorker.getRegistration()
