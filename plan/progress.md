@@ -90,5 +90,12 @@ This entry is written before the commit by design. After the commit, `git push o
 
 ### What remains open
 
-`M1-1`, `M1-4` (human cohort and seven sessions), `M2-2` (narrated video; frames and command exist), `M2-3`, and all `M3-*`/`M4-*` items. No P0 or P1 item is open. No product-usage metrics have been measured. No push or deployment was performed in this session; the CI/Pages gate is verified by workflow configuration and local commands, not by a deliberately red branch run.
+`M1-1`, `M1-4` (human cohort and seven sessions), `M2-2` (narrated video; frames and command exist), `M2-3`, and all `M3-*`/`M4-*` items. No P0 or P1 item is open. No product-usage metrics have been measured. The CI/Pages gate is verified by workflow configuration and local commands, not by a deliberately red branch run.
+
+### Delivery note (same day, after explicit owner confirmation)
+
+- `git commit` created `ab94729` (`fix: clear P0/P1 backlog and prepare seven-day pilot`); `git push origin main` moved `main` from `0b15718` to `ab94729`. Local HEAD and `origin/main` both equal `ab947293010f8f92b861bd0a7c1682c534efb8c1`.
+- CI run `45747394236` (push event, commit `ab94729`) completed **success** in 1m9s, including the new `verify:pages` step and both artifact uploads.
+- Pages run `45747520639` was triggered by `workflow_run` from that green CI run and completed **success** (Build 24s, Deploy 8s). This confirms `P1-1` in production: the deploy followed a green CI run rather than a raw push.
+- Both workflows emitted a non-blocking GitHub Actions notice that actions targeting Node.js 20 are being forced to Node.js 24 on the runner. All steps passed; this is not a Hexis failure.
 

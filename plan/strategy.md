@@ -20,7 +20,7 @@ A habit tracker that does not put a signup wall in front of the user. Hexis open
 
 ## Metrics
 
-**Measured (engineering only, 2026-11-26):** `npm ci` 0 vulnerabilities; lint 0 warnings; build succeeds (2503 modules, JS 336.24 kB / 104.10 kB gzip, CSS 26.71 kB / 6.73 kB gzip); `test:logic` 5 PASS lines; `test:rls` 1 PASS line; `test:e2e` 16 PASS lines; `test:pwa` 1 PASS line; `verify:pages` 1 PASS line on the `/Hexis/` build; `npm run demo` produced 5 screenshots. Earlier CI run `45356682855` and Pages deploy `45356682909` succeeded on `20af56d`. These are verification results, not product usage. No push or deploy was performed in the 2026-11-26 session.
+**Measured (engineering only, 2026-11-26):** `npm ci` 0 vulnerabilities; lint 0 warnings; build succeeds (2503 modules, JS 336.24 kB / 104.10 kB gzip, CSS 26.71 kB / 6.73 kB gzip); `test:logic` 5 PASS lines; `test:rls` 1 PASS line; `test:e2e` 16 PASS lines; `test:pwa` 1 PASS line; `verify:pages` 1 PASS line on the `/Hexis/` build; `npm run demo` produced 5 screenshots. Earlier CI run `45356682855` and Pages deploy `45356682909` succeeded on `20af56d`. On commit `ab94729`, CI `45747394236` and Pages `45747520639` both succeeded, the latter via the new CI gate. These are verification results, not product usage.
 
 **Not measured:** active users, guest→account conversion, D7 retention, check-in frequency, revenue, error rates. No analytics SDK or server-side event table exists. Any such number in future docs must be shown with the command that produced it.
 
