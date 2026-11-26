@@ -1,34 +1,40 @@
 import { fromKey, toKey } from './dates'
 import { parseLegacyJournal, type LegacyJournal } from './legacyJournal'
-import { categories, colors, moods, type ArchivePeriod, type HabitLog, type Journal, type TrackedHabit } from './tracking'
+import { categories, colors, moods, type ArchivePeriod, type HabitDetails, type HabitLog, type Journal, type TrackedHabit } from './tracking'
 
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const invalid = 'The backup contains invalid Hexis records. No data was imported.'
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
-const dayKey = (value: unknown): value is string =>
+export const dayKey = (value: unknown): value is string =>
   typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && toKey(fromKey(value)) === value
 const text = (value: unknown, max: number, allowEmpty = false): value is string =>
   typeof value === 'string' && Array.from(value).length <= max && (allowEmpty || !!value.trim())
 const number = (value: unknown, min: number, max: number): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
 
-function validPeriod(value: unknown): value is ArchivePeriod {
+export function validPeriod(value: unknown): value is ArchivePeriod {
   if (!isRecord(value)) return false
   const { start, end } = value
   return (start === null || dayKey(start)) && (end === null || dayKey(end))
     && (start === null || end === null || start < end)
 }
 
-function validHabit(value: unknown): value is TrackedHabit {
+export function validDetails(value: unknown): value is HabitDetails {
   if (!isRecord(value)) return false
-  const { id, name, icon, color, category, customCategory, schedule, weekdays, weeklyTarget,
-    kind, goal, unit, createdOn, archived, archived_at, archivePeriods } = value
-  return typeof id === 'string' && uuid.test(id) && text(name, 80) && text(icon, 32)
+  const { name, icon, color, category, customCategory } = value
+  return text(name, 80) && text(icon, 32)
     && typeof color === 'string' && Object.hasOwn(colors, color)
     && typeof category === 'string' && Object.hasOwn(categories, category)
     && (customCategory === null || (category === 'custom' && text(customCategory, 40)))
+}
+
+export function validHabit(value: unknown): value is TrackedHabit {
+  if (!isRecord(value)) return false
+  const { id, schedule, weekdays, weeklyTarget,
+    kind, goal, unit, createdOn, archived, archived_at, archivePeriods } = value
+  return typeof id === 'string' && uuid.test(id) && validDetails(value)
     && (schedule === 'daily' || schedule === 'weekdays' || schedule === 'weekly')
     && Array.isArray(weekdays) && (schedule === 'weekdays' ? weekdays.length >= 1 && weekdays.length <= 7 : weekdays.length === 0)
     && weekdays.every((day) => Number.isInteger(day) && number(day, 0, 6))
@@ -41,7 +47,7 @@ function validHabit(value: unknown): value is TrackedHabit {
     && (archivePeriods === undefined || (Array.isArray(archivePeriods) && archivePeriods.every(validPeriod)))
 }
 
-function validLog(log: unknown): log is HabitLog {
+export function validLog(log: unknown): log is HabitLog {
   return isRecord(log) && number(log.value, 0, 1e9) && typeof log.frozen === 'boolean'
     && (!log.frozen || log.value === 0) && (log.note == null || text(log.note, 280))
     && (log.mood == null || (typeof log.mood === 'string' && Object.hasOwn(moods, log.mood)))

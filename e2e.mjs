@@ -269,6 +269,11 @@ try {
   failNextNote = true
   await page.getByRole('textbox', { name: 'Daily affirmation' }).fill('The journal survives a reload.')
   await page.getByRole('button', { name: 'Retry sync' }).waitFor()
+  await page.evaluate((id) => {
+    const prefix = 'hexis-outbox-v1:' + id + ':'
+    localStorage.setItem(prefix + '0000-invalid', '{')
+    localStorage.setItem(prefix + '0001-invalid', JSON.stringify({ readyAt: 0, action: { type: 'unknown' } }))
+  }, user.id)
   await page.evaluate(() => {
     localStorage.setItem('hexis-outbox-v1:a-different-account:0001', JSON.stringify({
       action: { type: 'affirmation', day: '2026-11-20', body: 'Another account’s draft' }, readyAt: 0,
@@ -279,7 +284,7 @@ try {
   assert.equal(await page.getByRole('textbox', { name: 'Daily affirmation' }).inputValue(), 'The journal survives a reload.')
   assert.equal(tables.daily_affirmations.get('2026-11-20').body, 'The journal survives a reload.')
   assert.ok(await page.evaluate(() => localStorage.getItem('hexis-outbox-v1:a-different-account:0001')))
-  assert.equal(await page.evaluate((id) => Object.keys(localStorage).some((key) => key.startsWith('hexis-outbox-v1:' + id + ':')), user.id), false)
+  assert.equal(await page.evaluate((id) => Object.keys(localStorage).some((key) => key.startsWith('hexis-outbox-v1:' + id + ':') && !key.endsWith('-invalid')), user.id), false)
   console.log('PASS durable pending writes replay after reload for their owning account')
 
   await page.evaluate(() => {
@@ -313,9 +318,21 @@ try {
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('heading', { name: 'Habit reminders' }).waitFor()
   await context.grantPermissions(['notifications'])
+  await page.evaluate(() => {
+    const original = ServiceWorkerRegistration.prototype.showNotification
+    const NativeNotification = window.Notification
+    ServiceWorkerRegistration.prototype.showNotification = async function (...args) {
+      ServiceWorkerRegistration.prototype.showNotification = original
+      throw new Error('Temporary delivery failure')
+    }
+    window.Notification = new Proxy(NativeNotification, {
+      construct() { window.Notification = NativeNotification; throw new Error('Fallback unavailable') },
+    })
+  })
   await page.getByLabel('Reminder time').fill('00:00')
   await page.getByRole('button', { name: 'Enable reminders' }).click()
-  await page.getByText('Reminder saved.').waitFor()
+  await page.getByText(/This browser could not show a notification/).waitFor()
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await page.waitForFunction(async () => {
     const registration = await navigator.serviceWorker.getRegistration()
     return registration && (await registration.getNotifications()).some((notice) => notice.tag === 'hexis-daily-reminder')
@@ -367,8 +384,22 @@ try {
   await page.getByRole('progressbar', { name: 'Drink water progress' }).waitFor()
   assert.equal(await page.getByRole('progressbar', { name: 'Drink water progress' }).getAttribute('value'), '2')
   await page.getByRole('button', { name: 'Sign in or sign up' }).click()
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'hexis-guest-v1' && JSON.parse(value).mergeUserId && sessionStorage.getItem('claim-test') !== 'allow') {
+        sessionStorage.setItem('claim-test', 'failed')
+        throw new Error('Guest storage is read-only')
+      }
+      return original.call(this, key, value)
+    }
+  })
   await page.getByRole('button', { name: 'Continue with GitHub' }).click()
   await page.getByRole('heading', { name: 'Good morning, Avery.' }).waitFor()
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('claim-test')), 'failed')
+  assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('hexis-guest-v1')).journal.habits.length))
+  await page.evaluate(() => sessionStorage.setItem('claim-test', 'allow'))
+  await page.reload()
   await page.getByText('Your guest journal was merged.', { exact: false }).waitFor()
   const merged = tables.habit_logs.get(`guest-${guestHabit.id}:2026-11-20`)
   assert.equal(merged.note, '=Better, "one sip at a time"')

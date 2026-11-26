@@ -46,6 +46,8 @@ export function useReminder(userId: string, outstanding: number) {
   useEffect(() => {
     if (!supported || !preference.enabled || !outstanding) return
     const sentKey = `${key}:last-sent`
+    let active = true
+    let delivering = false
     let sentInSession = ''
 
     async function check() {
@@ -54,25 +56,33 @@ export function useReminder(userId: string, outstanding: number) {
       const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       if (clock < preference.time) return
       const day = toKey(now)
-      if (sentInSession === day) return
+      if (!active || delivering || sentInSession === day) return
       try {
         if (localStorage.getItem(sentKey) === day) return
-        localStorage.setItem(sentKey, day)
       } catch { /* The current tab still deduplicates notifications. */ }
-      sentInSession = day
+      delivering = true
       try {
         await notify(outstanding)
+        sentInSession = day
+        try { localStorage.setItem(sentKey, day) } catch { /* Deduplicate in this tab. */ }
+        if (active) setError('')
       } catch {
-        setError('This browser could not show a notification. Check its notification settings.')
+        if (active) setError('This browser could not show a notification. Check its notification settings.')
+      } finally {
+        delivering = false
       }
     }
 
-    const checkNow = () => void check()
+    const checkNow = () => {
+      if (navigator.locks) void navigator.locks.request(sentKey, check)
+      else void check()
+    }
     const timer = window.setInterval(checkNow, 30_000)
     window.addEventListener('focus', checkNow)
     document.addEventListener('visibilitychange', checkNow)
     checkNow()
     return () => {
+      active = false
       window.clearInterval(timer)
       window.removeEventListener('focus', checkNow)
       document.removeEventListener('visibilitychange', checkNow)
