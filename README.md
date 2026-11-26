@@ -4,7 +4,7 @@
 
 Hexis is a private habit tracker and affirmation journal. Start immediately as a guest, build a blank journal one habit at a time or choose an optional starter pack, and sign in to sync across devices.
 
-[Open Hexis](https://hexis.vercel.app/)
+Use this address on every device: [Open Hexis](https://hexis.vercel.app/)
 
 Long-term planning, decision history, and session logs live in [`plan/`](plan/README.md). Contribution and verification rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Third-party components are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
@@ -40,7 +40,7 @@ To enable GitHub sign-in, create a GitHub OAuth App. Use your Hexis URL as the h
 
 ## Deploy to GitHub Pages
 
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) deploys `main` to `https://yermukhamed0777.github.io/Hexis/` on every push and on manual dispatch. It builds with `HEXIS_BASE_PATH=/Hexis/` so asset URLs use the `/Hexis/` subpath, and it reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from Actions repository variables (**Settings → Secrets and variables → Actions → Variables**). Set those two variables before relying on account sync; with no values, `src/lib/supabase.ts` leaves the client unset and the build is guest-only. The separate **CI** workflow runs lint, build, and tests but does not gate this deployment.
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) deploys `main` to `https://yermukhamed0777.github.io/Hexis/` only on manual dispatch as a secondary recovery site. It builds with `HEXIS_BASE_PATH=/Hexis/` so asset URLs use the `/Hexis/` subpath, and it reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from Actions repository variables (**Settings → Secrets and variables → Actions → Variables**). Set those two variables before relying on account sync; with no values, `src/lib/supabase.ts` leaves the client unset and the build is guest-only. Pages runs the reusable CI workflow before building its subpath release. Vercel is the primary address. Its production build checks the public GitHub Actions API for a successful CI push run on the same main commit and stops on failure, API error, or timeout. Keep Vercel system environment variables enabled. Preview builds can run before CI finishes.
 
 The headers in [`vercel.json`](vercel.json) are Vercel configuration; the Pages workflow does not copy them into Pages configuration. The CSP assertions in `test/pwa.mjs` therefore describe the Vercel target, not the Pages target.
 

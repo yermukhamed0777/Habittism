@@ -1,3 +1,4 @@
+import { dayKey, isRecord, validDetails, validHabit, validLog, validPeriod } from '../lib/journalImport'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { saveGuestJournal } from '../lib/guestJournal'
 import type { HabitRepository } from '../lib/habitRepository'
@@ -54,16 +55,35 @@ function send(repository: HabitRepository, action: Action) {
 
 const now = () => performance.timeOrigin + performance.now()
 
-function readPending(prefix: string): Pending[] {
+function validAction(value: unknown): value is Action {
+  if (!isRecord(value)) return false
+  const id = typeof value.id === 'string' && !!value.id && !Object.hasOwn(Object.prototype, value.id)
+  switch (value.type) {
+    case 'create': return Array.isArray(value.habits) && value.habits.every(validHabit)
+    case 'delete': return id
+    case 'archive': return id && typeof value.archived === 'boolean' && Array.isArray(value.periods) && value.periods.every(validPeriod)
+    case 'details': return id && validDetails(value.patch) && Object.keys(value.patch).every(
+      (key) => ['name', 'icon', 'color', 'category', 'customCategory'].includes(key))
+    case 'log': return id && dayKey(value.day) && (value.log === null || validLog(value.log))
+    case 'affirmation': return dayKey(value.day) && typeof value.body === 'string'
+    default: return false
+  }
+}
+
+function readPending(prefix: string): Pending[] | null {
   const writes: Pending[] = []
   try {
     for (const key of Object.keys(localStorage).filter((key) => key.startsWith(prefix)).sort()) {
       const raw = localStorage.getItem(key)
       if (!raw) continue
-      const { action, readyAt } = JSON.parse(raw) as Omit<Pending, 'key' | 'stored'>
-      if (action && Number.isFinite(readyAt)) writes.push({ key, action, readyAt, stored: true })
+      try {
+        const entry: unknown = JSON.parse(raw)
+        if (isRecord(entry) && validAction(entry.action) && typeof entry.readyAt === 'number' && Number.isFinite(entry.readyAt)) {
+          writes.push({ key, action: entry.action, readyAt: entry.readyAt, stored: true })
+        }
+      } catch { /* An unreadable entry must not block later writes. */ }
     }
-  } catch { /* Pending writes can still use the in-memory queue. */ }
+  } catch { return null }
   return writes
 }
 
@@ -79,7 +99,9 @@ function createQueue(repository: HabitRepository, userId: string, onSync: (sync:
   }
 
   function reconcile() {
-    const saved = new Map(readPending(prefix).map((entry) => [entry.key, entry]))
+    const entries = readPending(prefix)
+    if (!entries) return
+    const saved = new Map(entries.map((entry) => [entry.key, entry]))
     const recovered: Action[] = []
     for (const [key, write] of pending) {
       if (write.stored && !saved.has(key)) pending.delete(key)
