@@ -122,3 +122,7 @@ Reviewed `ab94729`, `c4f8c2f` and `docs/pilot-7-day.md` before editing. Baseline
 
 **Release gate:** public journal access is anonymous-first, private writes require a verified owner, RLS isolation is asserted by `test:rls`, and failed writes/notification paths degrade without journal loss. The seven-day pilot with five fixed participants is prepared in `docs/pilot-7-day.md` with a blank record sheet and `docs/recovery-guide.md`; recruitment, consent, feedback and real email delivery remain human-only. No usage, user or revenue result was measured.
 
+### Delivery of the release candidate
+
+After owner confirmation, commit `2c04903` was pushed (`c4f8c2f..2c04903 main -> main`); local HEAD and `origin/main` both equal `2c0490352d0e2da2adcac96dd16f5610511ae219`. CI run `45792998674` completed **success** in 2m4s with all steps green, including the new `Verify data-integrity and recovery scenarios` step and both artifact uploads. Vercel reported `Deployment has completed` for the same SHA (`2Bbjpx6eWDmyzVbgddHbFdxh86qD`). The CI-gated Pages run `45793323769` completed **success**. Post-deployment `npm run check:live` reported **8 PASS** lines against Vercel and GitHub Pages. The non-blocking Node 20 action notice recurred; all steps passed. No tag, release, visibility or licence change was made.
+
