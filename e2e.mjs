@@ -321,7 +321,7 @@ try {
   await page.evaluate(() => {
     const original = ServiceWorkerRegistration.prototype.showNotification
     const NativeNotification = window.Notification
-    ServiceWorkerRegistration.prototype.showNotification = async function (...args) {
+    ServiceWorkerRegistration.prototype.showNotification = async function () {
       ServiceWorkerRegistration.prototype.showNotification = original
       throw new Error('Temporary delivery failure')
     }
